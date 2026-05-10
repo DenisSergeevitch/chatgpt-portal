@@ -86,6 +86,68 @@ h2 {
   padding: 24px;
 }
 
+.install-banner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 24px;
+  align-items: center;
+  border: 2px solid #141820;
+  border-radius: 8px;
+  background: #fff8d7;
+  box-shadow: 0 18px 50px rgba(20, 24, 32, 0.14);
+  padding: 30px;
+}
+
+.install-banner .section-label {
+  color: #8b4b00;
+  margin-top: 0;
+}
+
+.install-banner h2 {
+  max-width: 760px;
+  font-size: clamp(30px, 4.6vw, 50px);
+}
+
+.install-banner p {
+  max-width: 720px;
+  color: #3c3420;
+  font-size: 19px;
+}
+
+.banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.primary-link,
+.secondary-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-weight: 800;
+  padding: 10px 16px;
+  text-decoration: none;
+}
+
+.primary-link {
+  background: #141820;
+  color: #fff;
+}
+
+.secondary-link {
+  border: 1px solid #141820;
+  color: #141820;
+}
+
+.banner-command {
+  display: grid;
+  gap: 10px;
+}
+
 .section-heading {
   margin-bottom: 18px;
 }
@@ -193,6 +255,11 @@ button:hover {
 
   .panel {
     padding: 18px;
+  }
+
+  .install-banner {
+    grid-template-columns: 1fr;
+    padding: 20px;
   }
 
   .command-row,

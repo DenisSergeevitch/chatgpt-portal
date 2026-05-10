@@ -25,6 +25,30 @@
   </header>
 
   <main class="page">
+    <section class="install-banner" aria-labelledby="install-first-title">
+      <div>
+        <p class="section-label">Install first</p>
+        <h2 id="install-first-title">This is a local tool. Install the GitHub repo before using the portal.</h2>
+        <p>
+          The public page is only the guide. The bridge must run on your own computer so it can use a dedicated local Chrome profile and expose only sanitized snapshots.
+        </p>
+        <div class="banner-actions">
+          <a class="primary-link" href="https://github.com/DenisSergeevitch/chatgpt-portal" target="_blank" rel="noopener noreferrer">Open GitHub repo</a>
+          <a class="secondary-link" href="#start-title">Jump to commands</a>
+        </div>
+      </div>
+      <div class="banner-command">
+        <div class="command-row">
+          <code>git clone https://github.com/DenisSergeevitch/chatgpt-portal.git</code>
+          <button type="button" data-copy="git clone https://github.com/DenisSergeevitch/chatgpt-portal.git">Copy</button>
+        </div>
+        <div class="command-row">
+          <code>cd chatgpt-portal &amp;&amp; npm install</code>
+          <button type="button" data-copy="cd chatgpt-portal &amp;&amp; npm install">Copy</button>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" aria-labelledby="start-title">
       <div class="section-heading">
         <p class="section-label">Start</p>
