@@ -13,6 +13,7 @@ export type AppConfig = {
   chromeProfileDir: string;
   databasePath: string;
   actionLogPath: string;
+  uploadDir: string;
   allowlist: string[];
   allowSubdomains: boolean;
   initialUrl: string | null;
@@ -26,6 +27,8 @@ const LOCAL_DIR = path.join(ROOT_DIR, ".local");
 
 export async function loadConfig(): Promise<AppConfig> {
   await mkdir(LOCAL_DIR, { recursive: true });
+  const uploadDir = process.env.CHATGPT_PORTAL_UPLOAD_DIR || path.join(LOCAL_DIR, "uploads");
+  await mkdir(uploadDir, { recursive: true });
 
   const port = numberFromEnv("CHATGPT_PORTAL_PORT", 7777);
   const cdpPort = numberFromEnv("CHATGPT_PORTAL_CDP_PORT", 9222);
@@ -43,6 +46,7 @@ export async function loadConfig(): Promise<AppConfig> {
     chromeProfileDir,
     databasePath: process.env.CHATGPT_PORTAL_DB || path.join(LOCAL_DIR, "portal.db"),
     actionLogPath: process.env.CHATGPT_PORTAL_ACTION_LOG || path.join(LOCAL_DIR, "actions.jsonl"),
+    uploadDir,
     allowlist: splitList(process.env.CHATGPT_PORTAL_ALLOWLIST || ""),
     allowSubdomains: booleanFromEnv("CHATGPT_PORTAL_ALLOW_SUBDOMAINS", true),
     initialUrl: process.env.CHATGPT_PORTAL_TARGET || null,

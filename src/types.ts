@@ -1,4 +1,5 @@
-export type Risk = "navigation" | "blocked";
+export type Risk = "navigation" | "input" | "blocked";
+export type ControlKind = "radio" | "checkbox" | "text" | "textarea" | "select" | "file";
 
 export type SnapshotLink = {
   id: string;
@@ -10,6 +11,28 @@ export type SnapshotLink = {
 export type SnapshotButton = {
   id: string;
   text: string;
+  risk: Risk;
+};
+
+export type SnapshotControlOption = {
+  text: string;
+  value: string;
+  selected: boolean;
+  disabled: boolean;
+};
+
+export type SnapshotControl = {
+  id: string;
+  kind: ControlKind;
+  label: string;
+  name?: string;
+  checked?: boolean;
+  disabled: boolean;
+  required: boolean;
+  accept?: string;
+  multiple?: boolean;
+  hasValue?: boolean;
+  options?: SnapshotControlOption[];
   risk: Risk;
 };
 
@@ -27,6 +50,7 @@ export type PageSnapshot = {
   headings: string[];
   links: SnapshotLink[];
   buttons: SnapshotButton[];
+  controls: SnapshotControl[];
   forms: SnapshotForm[];
 };
 
@@ -37,6 +61,8 @@ export type ClickTarget = {
   text: string;
   href?: string;
   risk: Risk;
+  kind?: "link" | "button" | "control";
+  controlKind?: ControlKind;
 };
 
 export type RawLink = {
@@ -54,6 +80,29 @@ export type RawButton = {
   role?: string;
 };
 
+export type RawControlOption = {
+  text: string;
+  value: string;
+  selected: boolean;
+  disabled: boolean;
+};
+
+export type RawControl = {
+  kind: ControlKind;
+  label: string;
+  name?: string;
+  value?: string;
+  selector: string;
+  index: number;
+  checked?: boolean;
+  disabled: boolean;
+  required: boolean;
+  accept?: string;
+  multiple?: boolean;
+  inputType?: string;
+  options?: RawControlOption[];
+};
+
 export type RawForm = {
   fields: string[];
 };
@@ -65,6 +114,7 @@ export type RawPageSnapshot = {
   headings: string[];
   links: RawLink[];
   buttons: RawButton[];
+  controls: RawControl[];
   forms: RawForm[];
 };
 

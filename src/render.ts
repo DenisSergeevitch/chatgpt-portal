@@ -34,8 +34,12 @@ export function renderSnapshotPage(token: string, snapshot: PageSnapshot, title 
         ${renderButtonsTable(token, snapshot.buttons)}
       </section>
       <section>
+        <h2>Form controls</h2>
+        ${renderControlsTable(token, snapshot.controls)}
+      </section>
+      <section>
         <h2>Forms</h2>
-        ${snapshot.forms.length ? `<ul>${snapshot.forms.map((form) => `<li><strong>${escapeHtml(form.id)}</strong>: blocked form (${form.fields.map(escapeHtml).join(", ") || "no fields listed"})</li>`).join("")}</ul>` : "<p>No forms captured.</p>"}
+        ${snapshot.forms.length ? `<ul>${snapshot.forms.map((form) => `<li><strong>${escapeHtml(form.id)}</strong>: direct form submission blocked (${form.fields.map(escapeHtml).join(", ") || "no fields listed"})</li>`).join("")}</ul>` : "<p>No forms captured.</p>"}
       </section>
       <section>
         <h2>Raw snapshot JSON</h2>
@@ -145,7 +149,7 @@ export function pageShell(title: string, body: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
   <style>
-    :root { color-scheme: light; --bg:#f7f8fb; --panel:#fff; --text:#15181d; --muted:#5c6573; --line:#d9dee7; --accent:#0d6efd; --blocked:#a12a2a; --nav:#146c43; }
+    :root { color-scheme: light; --bg:#f7f8fb; --panel:#fff; --text:#15181d; --muted:#5c6573; --line:#d9dee7; --accent:#0d6efd; --blocked:#a12a2a; --nav:#146c43; --input:#7a4f00; }
     * { box-sizing: border-box; }
     body { margin:0; background:var(--bg); color:var(--text); font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     main { width:min(1100px, calc(100% - 28px)); margin:0 auto; padding:24px 0 48px; }
@@ -160,9 +164,14 @@ export function pageShell(title: string, body: string): string {
     table { width:100%; border-collapse:collapse; }
     th, td { border-top:1px solid var(--line); padding:8px; text-align:left; vertical-align:top; }
     th { color:var(--muted); font-size:13px; }
-    input { min-width:min(420px, 100%); padding:9px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+    input, textarea, select { min-width:min(420px, 100%); padding:9px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+    textarea { min-height:86px; }
     button, .button { display:inline-block; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:#fff; padding:8px 12px; text-decoration:none; font:inherit; font-weight:700; }
+    .inline-form { display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; margin:0; padding:0; border:0; background:transparent; }
+    .inline-form input, .inline-form textarea, .inline-form select { min-width:min(280px, 100%); }
+    .meta { color:var(--muted); font-size:13px; }
     .risk-navigation { color:var(--nav); font-weight:700; }
+    .risk-input { color:var(--input); font-weight:700; }
     .risk-blocked { color:var(--blocked); font-weight:700; }
     .results { display:grid; gap:12px; padding-left:22px; }
     mark { background:#fff1a8; padding:0 2px; }
@@ -229,6 +238,107 @@ function renderButtonsTable(token: string, buttons: PageSnapshot["buttons"]): st
       )
       .join("")}</tbody>
   </table>`;
+}
+
+function renderControlsTable(token: string, controls: PageSnapshot["controls"]): string {
+  if (!controls.length) {
+    return "<p>No form controls captured.</p>";
+  }
+
+  return `<table>
+    <thead><tr><th>ID</th><th>Kind</th><th>Label</th><th>State</th><th>Risk</th><th>Action</th></tr></thead>
+    <tbody>${controls
+      .map(
+        (control) => `
+          <tr>
+            <td><code>${escapeHtml(control.id)}</code></td>
+            <td>${escapeHtml(control.kind)}</td>
+            <td>
+              ${escapeHtml(control.label)}
+              ${control.name ? `<div class="meta">name: <code>${escapeHtml(control.name)}</code></div>` : ""}
+              ${control.accept ? `<div class="meta">accept: <code>${escapeHtml(control.accept)}</code></div>` : ""}
+            </td>
+            <td>${controlState(control)}</td>
+            <td class="risk-${control.risk}">${control.risk}</td>
+            <td>${renderControlAction(token, control)}</td>
+          </tr>
+        `
+      )
+      .join("")}</tbody>
+  </table>`;
+}
+
+function controlState(control: PageSnapshot["controls"][number]): string {
+  const parts: string[] = [];
+  if (control.checked !== undefined) {
+    parts.push(control.checked ? "checked" : "not checked");
+  }
+  if (control.disabled) {
+    parts.push("disabled");
+  }
+  if (control.required) {
+    parts.push("required");
+  }
+  if (control.multiple) {
+    parts.push("multiple");
+  }
+  if (control.hasValue && (control.kind === "text" || control.kind === "textarea" || control.kind === "file")) {
+    parts.push("has value");
+  }
+
+  return parts.length ? parts.map(escapeHtml).join(", ") : "available";
+}
+
+function renderControlAction(token: string, control: PageSnapshot["controls"][number]): string {
+  if (control.risk !== "input") {
+    return "Blocked";
+  }
+
+  if (control.kind === "radio" || control.kind === "checkbox") {
+    return `<a class="button" href="/s/${token}/select?id=${encodeURIComponent(control.id)}">Select</a>`;
+  }
+
+  if (control.kind === "select") {
+    const options = control.options?.length
+      ? control.options
+          .map(
+            (option) =>
+              `<option value="${escapeHtml(option.value)}"${option.selected ? " selected" : ""}${option.disabled ? " disabled" : ""}>${escapeHtml(option.text)}</option>`
+          )
+          .join("")
+      : `<option value="">Choose option</option>`;
+
+    return `
+      <form class="inline-form" action="/s/${token}/select" method="get">
+        <input type="hidden" name="id" value="${escapeHtml(control.id)}">
+        <select name="value">${options}</select>
+        <button type="submit">Select</button>
+      </form>
+    `;
+  }
+
+  if (control.kind === "file") {
+    return `
+      <form class="inline-form" action="/s/${token}/upload" method="get">
+        <input type="hidden" name="id" value="${escapeHtml(control.id)}">
+        <input name="file" placeholder="staged filename" autocomplete="off">
+        <button type="submit">Upload</button>
+      </form>
+      <div class="meta"><a href="/s/${token}/files">View staged files</a></div>
+    `;
+  }
+
+  return `
+    <form class="inline-form" action="/s/${token}/fill" method="get">
+      <input type="hidden" name="id" value="${escapeHtml(control.id)}">
+      ${
+        control.kind === "textarea"
+          ? `<textarea name="value" placeholder="Value"></textarea>`
+          : `<input name="value" placeholder="Value" autocomplete="off">`
+      }
+      <button type="submit">Fill</button>
+    </form>
+  `;
 }
 
 function formatSnippet(snippet: string): string {

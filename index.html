@@ -6,11 +6,11 @@
   <title>ChatGPT Portal Browser Bridge</title>
   <meta
     name="description"
-    content="Run a local read-and-navigate browser bridge made for GPT Pro-series agents that exposes sanitized authenticated page snapshots to ChatGPT through a temporary Cloudflare Tunnel."
+    content="Run a local browser bridge made for GPT Pro-series agents that exposes sanitized authenticated page snapshots and controlled form-wizard actions to ChatGPT through a temporary Cloudflare Tunnel."
   >
   <meta property="og:type" content="website">
   <meta property="og:title" content="ChatGPT Portal Browser Bridge">
-  <meta property="og:description" content="A local browser bridge made for GPT Pro-series agents: expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, or raw intranet access.">
+  <meta property="og:description" content="A local browser bridge made for GPT Pro-series agents: expose sanitized authenticated browser snapshots and controlled form-wizard actions to ChatGPT without sharing cookies, passwords, or raw intranet access.">
   <meta property="og:url" content="https://shir-man.com/chatgpt-portal/">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -20,7 +20,7 @@
     <p class="eyebrow">Made for GPT Pro-series agents</p>
     <h1>Expose authenticated pages to ChatGPT without exposing credentials</h1>
     <p class="lede">
-      Run a local read-and-navigate bridge against a dedicated Chrome profile, then publish only the sanitized portal through a temporary Cloudflare Tunnel for GPT Pro-series browsing and coding agents.
+      Run a local bridge against a dedicated Chrome profile, then publish only the sanitized portal through a temporary Cloudflare Tunnel for GPT Pro-series browsing and coding agents.
     </p>
   </header>
 
@@ -67,7 +67,7 @@ https://github.com/DenisSergeevitch/chatgpt-portal/blob/main/AGENTS.md
 
 Install or clone the repo in the project/workspace the user is currently working in, following the AGENTS.md guidance as the authority. Keep credentials, cookies, localStorage, bearer tokens, CSRF values, browser profile files, private URLs, live tunnel URLs, and local machine paths out of committed files and public docs.
 
-After installation, run npm install and npm run check. When the user is ready to expose a page, start share mode with a strict CHATGPT_PORTAL_ALLOWLIST for the site they want to inspect. Do not ask for raw credentials or exported browser state. After share mode prints the tokenized URL, post the standard ChatGPT handoff message in chat.</textarea>
+After installation, run npm install and npm run check. When the user is ready to expose a page, start share mode with a strict CHATGPT_PORTAL_ALLOWLIST for the site they want to inspect. Do not ask for raw credentials or exported browser state. If the workflow requires an upload, prepare the file in the portal upload staging folder first and refer to it by filename only. After share mode prints the tokenized URL, post the standard ChatGPT handoff message in chat.</textarea>
           <div class="command-row">
             <code>https://github.com/DenisSergeevitch/chatgpt-portal/blob/main/AGENTS.md</code>
             <button type="button" data-copy-target="agent-install-prompt">Copy prompt</button>
@@ -126,9 +126,10 @@ https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code
 
 Instructions:
 - Start by opening the link and reading the current `/view` snapshot.
-- Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, and safe `/click` navigation controls.
+- Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, safe `/click` navigation controls, `/select`, `/fill`, `/files`, and `/upload`.
+- You may select visible radio/checkbox/select controls, fill non-secret text fields and textareas, upload a file only after it has been prepared in the portal upload staging folder, and click navigation-like Continue/Next controls when the user asks.
 - Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
-- Do not submit forms, upload files, download files, save changes, publish, approve, delete, charge, refund, send, invite, or perform other state-changing actions.
+- Do not enter credentials or secrets into forms. Do not click final submit/send/save/publish/approve/delete/charge/refund/invite controls or other destructive/state-changing controls.
 - If you need broader exploration, ask before using `/crawl` with a large limit.
 - Summarize what you can see from sanitized snapshots and say when something is blocked by the portal safety model.</textarea>
       <div class="command-row">
@@ -150,6 +151,10 @@ Instructions:
         <div><dt>/crawl?scope=...&amp;limit=...</dt><dd>Crawl allowlisted same-origin pages into the local search index.</dd></div>
         <div><dt>/search?q=...</dt><dd>Search locally indexed sanitized snapshots.</dd></div>
         <div><dt>/click?id=...</dt><dd>Click only navigation-like controls from the latest snapshot.</dd></div>
+        <div><dt>/select?id=...</dt><dd>Select an allowed radio, checkbox, or select option from the latest snapshot.</dd></div>
+        <div><dt>/fill?id=...&amp;value=...</dt><dd>Fill an allowed non-secret text input or textarea.</dd></div>
+        <div><dt>/files</dt><dd>List files staged locally for upload by filename only.</dd></div>
+        <div><dt>/upload?id=...&amp;file=...</dt><dd>Set an allowed file input from the local upload staging folder.</dd></div>
       </dl>
     </section>
 
@@ -162,7 +167,8 @@ Instructions:
         <li>No raw reverse proxy into the private site.</li>
         <li>No cookies, bearer tokens, auth headers, localStorage, sessionStorage, hidden inputs, CSRF fields, password fields, scripts, or raw forms in snapshots.</li>
         <li>No non-allowlisted origins or paths.</li>
-        <li>No form submissions, uploads, downloads, saves, sends, deletes, approvals, charges, refunds, resets, publishes, or invites.</li>
+        <li>Controlled form-wizard actions only: select visible choices, fill non-secret text fields, set staged file inputs, and click Continue/Next-style controls.</li>
+        <li>No credentials or secrets entered into forms, no absolute local paths for uploads, and no final submit, download, save, send, delete, approval, charge, refund, publish, or invite actions.</li>
         <li>No long-lived public hostname in v1; use temporary `trycloudflare.com` tunnel URLs.</li>
       </ul>
     </section>

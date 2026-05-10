@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
+import { readdir } from "node:fs/promises";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
+import path from "node:path";
 import { loadConfig } from "./config.js";
 import { BrowserController } from "./browser.js";
 import { AuditLog } from "./audit.js";
@@ -59,6 +61,7 @@ server.listen(config.port, config.host, () => {
     console.log("Allowlist: implicit current-origin mode. Set CHATGPT_PORTAL_ALLOWLIST for stricter scoping.");
   }
   console.log(`Subdomains: ${config.allowSubdomains ? "allowed by default" : "exact hosts only"}`);
+  console.log(`Upload staging: ${uploadDirForDisplay()}`);
   console.log("");
 });
 
@@ -172,6 +175,14 @@ async function handleSessionRoute(route: string, url: URL, response: ServerRespo
     return;
   }
 
+  if (route === "files") {
+    const files = await listUploadFiles();
+    await audit.write("files", { count: files.length });
+    logPortal(`=> files count=${files.length}`);
+    writeHtml(response, 200, renderFilesPage(files));
+    return;
+  }
+
   if (route === "crawl") {
     const scope = url.searchParams.get("scope") || (await browser.currentUrl()) || "";
     const requestedLimit = numberParam(url, "limit", 100, 1, config.maxCrawlLimit);
@@ -194,6 +205,51 @@ async function handleSessionRoute(route: string, url: URL, response: ServerRespo
     await audit.write("click", { id, url: snapshot.url });
     logSnapshot("click", snapshot);
     writeHtml(response, 200, renderSnapshotPage(token, snapshot, `Clicked ${id}`));
+    return;
+  }
+
+  if (route === "fill") {
+    const id = url.searchParams.get("id") || "";
+    const value = url.searchParams.get("value") || "";
+    if (!id) {
+      throw new Error("An id query parameter is required.");
+    }
+    logPortal(`.. fill id=${redactSensitiveText(id)} value=<value>`);
+    const snapshot = await browser.fill(id, value);
+    store.upsert(snapshot);
+    await audit.write("fill", { id, valueLength: value.length, url: snapshot.url });
+    logSnapshot("fill", snapshot);
+    writeHtml(response, 200, renderSnapshotPage(token, snapshot, `Filled ${id}`));
+    return;
+  }
+
+  if (route === "select") {
+    const id = url.searchParams.get("id") || "";
+    const value = url.searchParams.get("value") || undefined;
+    if (!id) {
+      throw new Error("An id query parameter is required.");
+    }
+    logPortal(`.. select id=${redactSensitiveText(id)}${value ? " value=<value>" : ""}`);
+    const snapshot = await browser.select(id, value);
+    store.upsert(snapshot);
+    await audit.write("select", { id, hasValue: Boolean(value), url: snapshot.url });
+    logSnapshot("select", snapshot);
+    writeHtml(response, 200, renderSnapshotPage(token, snapshot, `Selected ${id}`));
+    return;
+  }
+
+  if (route === "upload") {
+    const id = url.searchParams.get("id") || "";
+    const file = url.searchParams.get("file") || "";
+    if (!id || !file) {
+      throw new Error("Both id and file query parameters are required for uploads.");
+    }
+    logPortal(`.. upload id=${redactSensitiveText(id)} file=<file>`);
+    const snapshot = await browser.upload(id, file);
+    store.upsert(snapshot);
+    await audit.write("upload", { id, file: "<staged-file>", url: snapshot.url });
+    logSnapshot("upload", snapshot);
+    writeHtml(response, 200, renderSnapshotPage(token, snapshot, `Uploaded ${id}`));
     return;
   }
 
@@ -273,6 +329,69 @@ function numberParam(url: URL, name: string, fallback: number, min: number, max:
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
+async function listUploadFiles(): Promise<Array<{ name: string }>> {
+  const entries = await readdir(config.uploadDir, { withFileTypes: true }).catch(() => []);
+  const results: Array<{ name: string }> = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) {
+      continue;
+    }
+
+    if (entry.isFile()) {
+      results.push({ name: entry.name });
+    }
+
+    if (results.length >= 100) {
+      break;
+    }
+  }
+
+  return results;
+}
+
+function renderFilesPage(files: Array<{ name: string }>): string {
+  const rows = files.length
+    ? files
+        .map((file) => `<li><code>${escapeForPage(file.name)}</code></li>`)
+        .join("")
+    : "<li>No staged files found.</li>";
+
+  return pageShell(
+    "Staged upload files",
+    `
+      <nav class="top-nav"><a href="/s/${token}/view">Current page</a></nav>
+      <header>
+        <p class="eyebrow">Upload staging</p>
+        <h1>Files available for file inputs</h1>
+        <p>Place files in <code>${escapeForPage(uploadDirForDisplay())}</code>, then use the filename with an allowed file input's upload action.</p>
+        <p>Use filenames only; absolute local paths are rejected.</p>
+      </header>
+      <section>
+        <h2>Staged files</h2>
+        <ul>${rows}</ul>
+      </section>
+    `
+  );
+}
+
+function uploadDirForDisplay(): string {
+  const relative = path.relative(process.cwd(), config.uploadDir);
+  if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+    return relative;
+  }
+
+  return "<configured upload staging folder>";
+}
+
+function escapeForPage(value: string): string {
+  return redactSensitiveText(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function writeHtml(response: ServerResponse, status: number, body: string): void {
   response.writeHead(status, { "Content-Type": "text/html; charset=utf-8" });
   response.end(body);
@@ -310,7 +429,7 @@ function describeUrlForLog(url: URL): string {
   const safePath = url.pathname.replace(/^\/s\/[^/]+/, "/s/<token>");
   const params: string[] = [];
 
-  for (const name of ["url", "scope", "limit", "q", "id"]) {
+  for (const name of ["url", "scope", "limit", "q", "id", "value", "file"]) {
     const value = url.searchParams.get(name);
     if (value !== null) {
       params.push(`${name}=${safeValueForLog(name, value)}`);
@@ -327,6 +446,14 @@ function safeValueForLog(name: string, value: string): string {
 
   if (name === "q") {
     return value ? "<query>" : "<empty>";
+  }
+
+  if (name === "value") {
+    return value ? "<value>" : "<empty>";
+  }
+
+  if (name === "file") {
+    return value ? "<file>" : "<empty>";
   }
 
   return redactSensitiveText(value);
@@ -366,9 +493,19 @@ function errorDetails(error: unknown): {
 
   if (
     message.includes("url query parameter is required") ||
+    message.includes("id query parameter is required") ||
+    message.includes("file query parameters are required") ||
+    message.includes("value query parameter is required") ||
     message.includes("Only http and https URLs are allowed") ||
     message.includes("Unknown element id") ||
-    message.includes("not navigation-like")
+    message.includes("not navigation-like") ||
+    message.includes("not an allowed form control") ||
+    message.includes("cannot be filled") ||
+    message.includes("cannot be selected") ||
+    message.includes("cannot upload files") ||
+    message.includes("Upload file must") ||
+    message.includes("Upload target must") ||
+    message.includes("Upload file was not found")
   ) {
     return {
       status: 400,

@@ -6,6 +6,7 @@ export async function captureRawSnapshot(page: Page): Promise<RawPageSnapshot> {
   (() => {
     const linkSelector = "a[href]";
     const buttonSelector = 'button, input[type="button"], input[type="submit"], input[type="reset"], [role="button"], [role="tab"], summary, a[role="button"]';
+    const controlSelector = 'input:not([type="hidden"]):not([type="password"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select';
 
     const isVisible = (element) => {
       const htmlElement = element;
@@ -32,6 +33,84 @@ export async function captureRawSnapshot(page: Page): Promise<RawPageSnapshot> {
         htmlElement.getAttribute("title") ||
         ""
       );
+    };
+
+    const labelsFor = (element) => {
+      const labels = element.labels ? Array.from(element.labels) : [];
+      const id = element.id;
+      if (id) {
+        const explicitLabel = document.querySelector('label[for="' + CSS.escape(id) + '"]');
+        if (explicitLabel && !labels.includes(explicitLabel)) {
+          labels.push(explicitLabel);
+        }
+      }
+      const wrappingLabel = element.closest ? element.closest("label") : null;
+      if (wrappingLabel && !labels.includes(wrappingLabel)) {
+        labels.push(wrappingLabel);
+      }
+      return labels;
+    };
+
+    const labelTextOf = (element) => {
+      const labels = labelsFor(element)
+        .filter(isVisible)
+        .map((label) => label.innerText || label.textContent || "")
+        .map((text) => text.replace(/\\s+/g, " ").trim())
+        .filter(Boolean);
+
+      return (
+        labels[0] ||
+        element.getAttribute("aria-label") ||
+        element.getAttribute("placeholder") ||
+        element.getAttribute("name") ||
+        element.getAttribute("id") ||
+        ""
+      );
+    };
+
+    const controlKindOf = (element) => {
+      const tag = element.tagName.toLowerCase();
+      if (tag === "textarea") {
+        return "textarea";
+      }
+      if (tag === "select") {
+        return "select";
+      }
+      const type = (element.getAttribute("type") || "text").toLowerCase();
+      if (type === "radio") {
+        return "radio";
+      }
+      if (type === "checkbox") {
+        return "checkbox";
+      }
+      if (type === "file") {
+        return "file";
+      }
+      return "text";
+    };
+
+    const isControlVisible = (element) => {
+      const kind = controlKindOf(element);
+      if (isVisible(element)) {
+        return true;
+      }
+      if (kind !== "radio" && kind !== "checkbox" && kind !== "file") {
+        return false;
+      }
+      return labelsFor(element).some(isVisible);
+    };
+
+    const controlValueOf = (element, kind) => {
+      if (kind === "text" || kind === "textarea") {
+        return element.value || "";
+      }
+      if (kind === "select") {
+        return element.value || "";
+      }
+      if (kind === "file") {
+        return element.files && element.files.length ? String(element.files.length) : "";
+      }
+      return element.getAttribute("value") || "";
     };
 
     const absoluteHref = (value) => {
@@ -66,6 +145,38 @@ export async function captureRawSnapshot(page: Page): Promise<RawPageSnapshot> {
         index,
         role: element.getAttribute("role") || "",
       }));
+
+    const controls = Array.from(document.querySelectorAll(controlSelector))
+      .map((element, index) => ({ element, index }))
+      .filter(({ element }) => isControlVisible(element))
+      .map(({ element, index }) => {
+        const kind = controlKindOf(element);
+        const options =
+          kind === "select"
+            ? Array.from(element.options || []).map((option) => ({
+                text: option.innerText || option.textContent || option.value || "",
+                value: option.value || "",
+                selected: Boolean(option.selected),
+                disabled: Boolean(option.disabled),
+              }))
+            : undefined;
+
+        return {
+          kind,
+          label: labelTextOf(element),
+          name: element.getAttribute("name") || "",
+          value: controlValueOf(element, kind),
+          selector: controlSelector,
+          index,
+          checked: "checked" in element ? Boolean(element.checked) : undefined,
+          disabled: Boolean(element.disabled),
+          required: Boolean(element.required),
+          accept: element.getAttribute("accept") || "",
+          multiple: Boolean(element.multiple),
+          inputType: element.getAttribute("type") || "",
+          options,
+        };
+      });
 
     const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"))
       .filter(isVisible)
@@ -105,6 +216,7 @@ export async function captureRawSnapshot(page: Page): Promise<RawPageSnapshot> {
       headings,
       links,
       buttons,
+      controls,
       forms,
     };
   })()

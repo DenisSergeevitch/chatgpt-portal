@@ -12,7 +12,7 @@ The architecture is intentionally small:
 Dedicated local Chrome profile
         -> Chrome DevTools Protocol
 Local bridge on 127.0.0.1
-        -> sanitized HTML snapshots and navigation-only actions
+        -> sanitized HTML snapshots and controlled page actions
 Cloudflare quick tunnel
         -> temporary tokenized public URL
 ChatGPT
@@ -47,6 +47,8 @@ Stop access by stopping share mode with `Ctrl+C`, closing the dedicated Chrome p
 
 After each successful share-mode run, post a short message the operator can paste into ChatGPT. Include the live tokenized URL only in the chat response, never in committed files, docs, fixtures, tests, or logs.
 
+When the tunnel starts successfully, ALWAYS quote the full handoff message in the chat response, with the live tokenized URL replacing `<tokenized-portal-url>`.
+
 Do not include the private target URL, local filesystem paths, user names, machine names, or credentials in the handoff message unless the operator explicitly asks for that exact detail in the current chat. The tokenized portal URL is enough.
 
 Use this template:
@@ -58,9 +60,10 @@ Use this ChatGPT Portal link to inspect the browser page I opened:
 
 Instructions:
 - Start by opening the link and reading the current `/view` snapshot.
-- Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, and safe `/click` navigation controls.
+- Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, safe `/click` navigation controls, `/select`, `/fill`, `/files`, and `/upload`.
+- You may select visible radio/checkbox/select controls, fill non-secret text fields and textareas, upload a file only after it has been prepared in the portal upload staging folder, and click navigation-like Continue/Next controls when the user asks.
 - Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
-- Do not submit forms, upload files, download files, save changes, publish, approve, delete, charge, refund, send, invite, or perform other state-changing actions.
+- Do not enter credentials or secrets into forms. Do not click final submit/send/save/publish/approve/delete/charge/refund/invite controls or other destructive/state-changing controls.
 - If you need broader exploration, ask before using `/crawl` with a large limit.
 - Summarize what you can see from sanitized snapshots and say when something is blocked by the portal safety model.
 ```
@@ -72,9 +75,11 @@ Instructions:
 - Allowlisted hosts include their subdomains by default. Use `CHATGPT_PORTAL_ALLOW_SUBDOMAINS=0` for exact-host-only sessions.
 - Keep Chrome profile data, crawl databases, logs, screenshots, and tunnel output under ignored local-only paths.
 - Keep routes plain HTML that ChatGPT can read without client-side JavaScript.
-- Keep `/click` restricted to navigation-like controls: links, tabs, pagination, menus, and disclosures.
-- Keep destructive or state-changing labels blocked, including delete, remove, send, invite, approve, charge, refund, reset, publish, save, submit, upload, and download.
-- Do not add forms, writes, uploads, downloads, raw request replay, cookie export, localStorage export, or arbitrary JavaScript execution without redesigning the safety model first.
+- Keep `/click` restricted to navigation-like controls: links, tabs, pagination, menus, disclosures, and Continue/Next-style wizard advancement.
+- Keep `/select`, `/fill`, and `/upload` restricted to controls from the latest sanitized snapshot.
+- For file uploads, prepare or copy the file into the portal upload staging folder first (`.local/uploads` by default, or `CHATGPT_PORTAL_UPLOAD_DIR` if configured), then use only the staged filename with `/upload`; never expose absolute local paths in prompts or docs.
+- Keep destructive or state-changing labels blocked, including delete, remove, send, invite, approve, charge, refund, reset, publish, save, submit, and download.
+- Do not add raw request replay, cookie export, localStorage export, arbitrary JavaScript execution, or arbitrary filesystem upload paths without redesigning the safety model first.
 - Do not add a Cloudflare Worker front door, named tunnel, Cloudflare Access, MCP server, ChatGPT App, or persistent public service unless explicitly requested.
 
 ## Implementation Map
@@ -82,8 +87,8 @@ Instructions:
 - `src/server.ts` starts the local tokenized HTML portal and owns `/s/:token/...` routing.
 - `src/share.ts` starts `npm run dev`, starts `cloudflared tunnel --url <local-origin>`, parses the generated tunnel origin, and prints the final `/s/<token>/view` URL.
 - `src/browser.ts` launches or attaches to Chrome over CDP and uses a dedicated Chrome profile by default.
-- `src/snapshot.ts` extracts visible text, headings, links, buttons, form labels, tables, and page metadata.
-- `src/sanitizer.ts` redacts secrets, classifies safe navigation actions, and blocks dangerous controls.
+- `src/snapshot.ts` extracts visible text, headings, links, buttons, controlled form inputs, form labels, tables, and page metadata.
+- `src/sanitizer.ts` redacts secrets, classifies safe navigation and input actions, and blocks dangerous controls.
 - `src/storage.ts` stores sanitized snapshots in local SQLite/FTS for `/search` and `/crawl`.
 - `src/render.ts` renders the plain HTML pages consumed by ChatGPT.
 
@@ -98,6 +103,10 @@ GET /s/:token/links?url=<absolute-or-relative-url>
 GET /s/:token/crawl?scope=<url-or-path>&limit=<number>
 GET /s/:token/search?q=<query>
 GET /s/:token/click?id=<element-id>
+GET /s/:token/select?id=<control-id>[&value=<option-value>]
+GET /s/:token/fill?id=<control-id>&value=<text>
+GET /s/:token/files
+GET /s/:token/upload?id=<control-id>&file=<staged-filename>
 POST /shutdown?token=<session-token>
 ```
 
@@ -115,6 +124,7 @@ When testing against private or authenticated pages:
 - Remember that the default allowlist behavior includes subdomains of each allowed host. Do not hard-code real domains in tests or docs; use generic examples such as `https://example.com` and `https://app.example.com`.
 - Prefer small manual checks before crawling. Avoid large crawls on real systems unless the user explicitly asks.
 - Do not print full sanitized snapshots into chat or logs when the page may contain private business data. Fetch to a temporary file and inspect only status, title, captured URL, and obvious redaction signals.
+- When testing uploads, create a harmless fixture under `.local/uploads`, use only that staged filename, and verify that absolute paths and `..` paths are rejected.
 - Verify tokenless and wrong-token requests return `404` or `401`.
 - Verify `/health` locally and through the tunnel before testing `/view`.
 - If CDP port `9222` is already occupied, use a separate port and endpoint, for example:
@@ -128,7 +138,7 @@ npm run share
 
 When changing sharing behavior, update and run `tests/share.test.ts`.
 
-When changing redaction, URL policy, crawl behavior, or click classification, update the relevant unit tests and add fixture coverage for the new edge case.
+When changing redaction, URL policy, crawl behavior, click classification, or controlled form actions, update the relevant unit tests and add fixture coverage for the new edge case.
 
 When changing public instructions, keep `README.md`, `index.html`, and this `AGENTS.md` aligned.
 

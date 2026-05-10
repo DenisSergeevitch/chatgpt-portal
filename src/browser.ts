@@ -1,5 +1,6 @@
-import { mkdir } from "node:fs/promises";
+import { access, mkdir, stat } from "node:fs/promises";
 import { spawn, type ChildProcess } from "node:child_process";
+import path from "node:path";
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright";
 import type { AppConfig } from "./config.js";
@@ -80,6 +81,57 @@ export class BrowserController {
     });
   }
 
+  async fill(id: string, value: string): Promise<PageSnapshot> {
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      const target = this.targetForInput(id);
+      if (target.controlKind !== "text" && target.controlKind !== "textarea") {
+        throw new Error(`Element ${id} cannot be filled because it is not a text input or textarea.`);
+      }
+
+      await page.locator(target.selector).nth(target.index).fill(value, { timeout: 10000 });
+      await page.waitForTimeout(150);
+      return this.capture(page);
+    });
+  }
+
+  async select(id: string, value?: string): Promise<PageSnapshot> {
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      const target = this.targetForInput(id);
+      const locator = page.locator(target.selector).nth(target.index);
+
+      if (target.controlKind === "radio" || target.controlKind === "checkbox") {
+        await locator.check({ force: true, timeout: 10000 });
+      } else if (target.controlKind === "select") {
+        if (!value) {
+          throw new Error(`A value query parameter is required to select an option for ${id}.`);
+        }
+        await locator.selectOption(value, { timeout: 10000 });
+      } else {
+        throw new Error(`Element ${id} cannot be selected because it is not a radio, checkbox, or select.`);
+      }
+
+      await page.waitForTimeout(150);
+      return this.capture(page);
+    });
+  }
+
+  async upload(id: string, fileName: string): Promise<PageSnapshot> {
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      const target = this.targetForInput(id);
+      if (target.controlKind !== "file") {
+        throw new Error(`Element ${id} cannot upload files because it is not a file input.`);
+      }
+
+      const filePath = await this.stagedUploadPath(fileName);
+      await page.locator(target.selector).nth(target.index).setInputFiles(filePath, { timeout: 10000 });
+      await page.waitForTimeout(150);
+      return this.capture(page);
+    });
+  }
+
   async close(): Promise<void> {
     await this.browser?.close().catch(() => undefined);
     if (this.chromeProcess && !this.chromeProcess.killed) {
@@ -106,6 +158,43 @@ export class BrowserController {
     });
     this.targets = targets;
     return snapshot;
+  }
+
+  private targetForInput(id: string): ClickTarget {
+    const target = this.targets.get(id);
+    if (!target) {
+      throw new Error(`Unknown element id ${id}. Refresh /view and use one of the listed ids.`);
+    }
+
+    if (target.risk !== "input" || target.kind !== "control") {
+      throw new Error(`Element ${id} is blocked because it is not an allowed form control.`);
+    }
+
+    return target;
+  }
+
+  private async stagedUploadPath(fileName: string): Promise<string> {
+    if (!fileName || path.isAbsolute(fileName) || fileName.includes("/") || fileName.includes("\\") || fileName.includes("..")) {
+      throw new Error("Upload file must be a filename relative to the portal upload staging folder.");
+    }
+
+    const root = path.resolve(this.config.uploadDir);
+    const resolved = path.resolve(root, fileName);
+    if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+      throw new Error("Upload file must stay inside the portal upload staging folder.");
+    }
+
+    try {
+      await access(resolved);
+    } catch (error) {
+      throw new Error("Upload file was not found in the portal upload staging folder.");
+    }
+    const details = await stat(resolved);
+    if (!details.isFile()) {
+      throw new Error("Upload target must be a regular file in the portal upload staging folder.");
+    }
+
+    return resolved;
   }
 
   private async runExclusive<T>(operation: () => Promise<T>): Promise<T> {

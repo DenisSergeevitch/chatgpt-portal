@@ -2,10 +2,12 @@ import type {
   ClickTarget,
   PageSnapshot,
   RawButton,
+  RawControl,
   RawLink,
   RawPageSnapshot,
   Risk,
   SnapshotButton,
+  SnapshotControl,
   SnapshotLink,
 } from "./types.js";
 import { UrlPolicy } from "./url-policy.js";
@@ -14,7 +16,10 @@ const DANGEROUS_WORDS =
   /\b(delete|remove|send|invite|approve|charge|refund|reset|publish|save|submit|upload|download|export|import|create|update|disable|enable|archive|deactivate|confirm)\b/i;
 
 const NAVIGATION_WORDS =
-  /\b(next|previous|prev|back|continue|open|view|details|more|show|hide|expand|collapse|menu|tab|page|settings|dashboard|home|search|filter|sort)\b/i;
+  /\b(next|previous|prev|back|continue|open|view|details|more|show|hide|expand|collapse|menu|tab|page|settings|dashboard|home|search|filter|sort|volgende|verder|doorgaan|terug|vorige)\b/i;
+
+const SECRET_FIELD_WORDS =
+  /\b(password|passcode|secret|token|api[_ -]?key|csrf|cookie|session|bearer|authorization|credential|login|log in|sign in)\b/i;
 
 export function sanitizeSnapshot(
   raw: RawPageSnapshot,
@@ -42,6 +47,7 @@ export function sanitizeSnapshot(
       text,
       href,
       risk,
+      kind: "link",
     });
   }
 
@@ -59,6 +65,54 @@ export function sanitizeSnapshot(
       text,
       href,
       risk,
+      kind: "button",
+    });
+  }
+
+  const controls: SnapshotControl[] = [];
+  for (const rawControl of raw.controls || []) {
+    const id = `c${controls.length + 1}`;
+    const label = cleanInline(rawControl.label) || cleanInline(rawControl.name || "") || `${rawControl.kind} control`;
+    const name = rawControl.name ? redactSensitiveText(cleanInline(rawControl.name)) : undefined;
+    const risk = classifyControl(rawControl);
+    const options = rawControl.options
+      ?.map((option) => ({
+        text: redactSensitiveText(cleanInline(option.text) || option.value || "Untitled option"),
+        value: redactSensitiveText(cleanInline(option.value)),
+        selected: Boolean(option.selected),
+        disabled: Boolean(option.disabled),
+      }))
+      .filter((option) => option.text || option.value);
+
+    controls.push({
+      id,
+      kind: rawControl.kind,
+      label: redactSensitiveText(label),
+      name,
+      checked: rawControl.checked,
+      disabled: rawControl.disabled,
+      required: rawControl.required,
+      accept: rawControl.accept ? redactSensitiveText(cleanInline(rawControl.accept)) : undefined,
+      multiple: rawControl.multiple,
+      hasValue:
+        rawControl.kind === "text" ||
+        rawControl.kind === "textarea" ||
+        rawControl.kind === "select" ||
+        rawControl.kind === "file"
+          ? Boolean(rawControl.value)
+          : undefined,
+      options,
+      risk,
+    });
+
+    targets.set(id, {
+      id,
+      selector: rawControl.selector,
+      index: rawControl.index,
+      text: label,
+      risk,
+      kind: "control",
+      controlKind: rawControl.kind,
     });
   }
 
@@ -71,6 +125,7 @@ export function sanitizeSnapshot(
       headings: raw.headings.map((heading) => redactSensitiveText(cleanInline(heading))).filter(Boolean),
       links,
       buttons,
+      controls,
       forms: raw.forms.map((form, index) => ({
         id: `f${index + 1}`,
         fields: form.fields.map((field) => redactSensitiveText(cleanInline(field))).filter(Boolean),
@@ -111,6 +166,27 @@ export function classifyButton(
 
   if (button.role === "tab" || NAVIGATION_WORDS.test(text)) {
     return "navigation";
+  }
+
+  return "blocked";
+}
+
+export function classifyControl(control: Pick<RawControl, "kind" | "label" | "name" | "disabled" | "inputType">): Risk {
+  const descriptor = cleanInline(`${control.label || ""} ${control.name || ""} ${control.inputType || ""}`);
+
+  if (control.disabled || SECRET_FIELD_WORDS.test(descriptor)) {
+    return "blocked";
+  }
+
+  if (
+    control.kind === "radio" ||
+    control.kind === "checkbox" ||
+    control.kind === "text" ||
+    control.kind === "textarea" ||
+    control.kind === "select" ||
+    control.kind === "file"
+  ) {
+    return "input";
   }
 
   return "blocked";
