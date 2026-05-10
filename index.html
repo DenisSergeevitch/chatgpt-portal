@@ -49,40 +49,63 @@
       </div>
     </section>
 
-    <section class="panel" aria-labelledby="start-title">
+    <section class="panel wizard" aria-labelledby="start-title">
       <div class="section-heading">
         <p class="section-label">Start</p>
-        <h2 id="start-title">Run the local bridge</h2>
+        <h2 id="start-title">Installation</h2>
       </div>
-      <ol class="steps">
-        <li>
-          <strong>Install dependencies once.</strong>
-          <p>Run this from the local clone of this repository.</p>
+      <div class="wizard-tabs" role="tablist" aria-label="Installation mode">
+        <input type="radio" name="install-mode" id="install-agents" checked>
+        <label role="tab" aria-controls="agents-install-panel" for="install-agents">For agents</label>
+        <input type="radio" name="install-mode" id="install-humans">
+        <label role="tab" aria-controls="humans-install-panel" for="install-humans">For humans</label>
+
+        <div id="agents-install-panel" class="wizard-panel wizard-panel-agents" role="tabpanel">
+          <p>Paste this into a coding agent that can work in your local project.</p>
+          <textarea id="agent-install-prompt" readonly>Follow this file exactly to install and run ChatGPT Portal Browser Bridge:
+https://github.com/DenisSergeevitch/chatgpt-portal/blob/main/AGENTS.md
+
+Install or clone the repo in the project/workspace the user is currently working in, following the AGENTS.md guidance as the authority. Keep credentials, cookies, localStorage, bearer tokens, CSRF values, browser profile files, private URLs, live tunnel URLs, and local machine paths out of committed files and public docs.
+
+After installation, run npm install and npm run check. When the user is ready to expose a page, start share mode with a strict CHATGPT_PORTAL_ALLOWLIST for the site they want to inspect. Do not ask for raw credentials or exported browser state. After share mode prints the tokenized URL, post the standard ChatGPT handoff message in chat.</textarea>
           <div class="command-row">
-            <code>cd chatgpt-portal &amp;&amp; npm install</code>
-            <button type="button" data-copy="cd chatgpt-portal &amp;&amp; npm install">Copy</button>
+            <code>https://github.com/DenisSergeevitch/chatgpt-portal/blob/main/AGENTS.md</code>
+            <button type="button" data-copy-target="agent-install-prompt">Copy prompt</button>
           </div>
-        </li>
-        <li>
-          <strong>Start share mode with an allowlist.</strong>
-          <div class="command-row">
-            <code>CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share</code>
-            <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy</button>
-          </div>
-          <p>Replace the example origin with the private site origin or path you want this session to inspect.</p>
-        </li>
-        <li>
-          <strong>Log in inside the dedicated Chrome window.</strong>
-          <p>The bridge opens or attaches to a Chrome profile under local ignored state. Use that browser to authenticate normally.</p>
-        </li>
-        <li>
-          <strong>Wait for the CLI to print the public URL.</strong>
-          <div class="command-row">
-            <code>Share this URL with ChatGPT: https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code>
-            <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy command</button>
-          </div>
-        </li>
-      </ol>
+        </div>
+
+        <div id="humans-install-panel" class="wizard-panel wizard-panel-humans" role="tabpanel">
+          <ol class="steps">
+            <li>
+              <strong>Install dependencies once.</strong>
+              <p>Run this from the local clone of this repository.</p>
+              <div class="command-row">
+                <code>cd chatgpt-portal &amp;&amp; npm install</code>
+                <button type="button" data-copy="cd chatgpt-portal &amp;&amp; npm install">Copy</button>
+              </div>
+            </li>
+            <li>
+              <strong>Start share mode with an allowlist.</strong>
+              <div class="command-row">
+                <code>CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share</code>
+                <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy</button>
+              </div>
+              <p>Replace the example origin with the private site origin or path you want this session to inspect.</p>
+            </li>
+            <li>
+              <strong>Log in inside the dedicated Chrome window.</strong>
+              <p>The bridge opens or attaches to a Chrome profile under local ignored state. Use that browser to authenticate normally.</p>
+            </li>
+            <li>
+              <strong>Wait for the CLI to print the public URL.</strong>
+              <div class="command-row">
+                <code>Share this URL with ChatGPT: https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code>
+                <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy command</button>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </div>
     </section>
 
     <section class="panel" aria-labelledby="share-title">

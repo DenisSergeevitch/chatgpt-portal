@@ -168,6 +168,63 @@ h2 {
   color: var(--muted);
 }
 
+.wizard-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 150px)) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.wizard-tabs input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wizard-tabs label {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 8px 12px;
+}
+
+#install-agents:checked + label,
+#install-humans:checked + label {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.wizard-panel {
+  display: none;
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 18px;
+}
+
+#install-agents:checked ~ .wizard-panel-agents,
+#install-humans:checked ~ .wizard-panel-humans {
+  display: block;
+}
+
+textarea {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcff;
+  color: var(--text);
+  font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding: 14px;
+}
+
 .command-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -260,6 +317,10 @@ button:hover {
   .install-banner {
     grid-template-columns: 1fr;
     padding: 20px;
+  }
+
+  .wizard-tabs {
+    grid-template-columns: 1fr 1fr;
   }
 
   .command-row,
