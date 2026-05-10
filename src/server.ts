@@ -39,6 +39,8 @@ server.listen(config.port, config.host, () => {
   console.log(`Token expires: ${new Date(tokenExpiresAt).toISOString()}`);
   console.log("");
   console.log("Expose temporarily with:");
+  console.log("  npm run share");
+  console.log("Or run cloudflared manually:");
   console.log(`  cloudflared tunnel --url ${base}`);
   console.log("");
   if (config.allowlist.length) {

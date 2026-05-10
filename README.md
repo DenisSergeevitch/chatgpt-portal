@@ -2,10 +2,10 @@
 
 Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, localStorage, or a raw reverse proxy into a private app.
 
-The bridge runs locally on `127.0.0.1`, controls a dedicated Chrome profile through Chrome DevTools Protocol, and publishes only a tokenized HTML portal. For temporary public access, expose that local portal with Cloudflare Tunnel:
+The bridge runs locally on `127.0.0.1`, controls a dedicated Chrome profile through Chrome DevTools Protocol, and publishes only a tokenized HTML portal. For temporary public access, use share mode:
 
 ```bash
-cloudflared tunnel --url http://127.0.0.1:7777
+CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share
 ```
 
 Do not commit or share the generated session token, crawl database, Chrome profile, logs, or any `trycloudflare.com` URL after the session is over.
@@ -18,10 +18,10 @@ npm install
 
 ## Run
 
-Set an allowlist for the private origin or path you want this session to inspect:
+Set an allowlist for the private origin or path you want this session to inspect, then run share mode:
 
 ```bash
-CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run dev
+CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share
 ```
 
 Optional settings:
@@ -34,19 +34,19 @@ CHATGPT_PORTAL_TOKEN_TTL_MINUTES=240
 CHATGPT_PORTAL_NO_LAUNCH=1
 ```
 
-The server prints a URL like:
+Share mode starts the local bridge, starts `cloudflared`, and prints the final URL to give ChatGPT:
 
 ```text
-http://127.0.0.1:7777/s/<session-token>/view
+Share this URL with ChatGPT:
+https://random-name.trycloudflare.com/s/<session-token>/view
 ```
 
-Expose the local server temporarily:
+Manual mode is still available if you want to run `cloudflared` yourself:
 
 ```bash
+CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run dev
 cloudflared tunnel --url http://127.0.0.1:7777
 ```
-
-Give ChatGPT the `trycloudflare.com` URL with the same `/s/<session-token>/view` path.
 
 ## Routes
 

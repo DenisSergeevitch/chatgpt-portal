@@ -40,10 +40,10 @@
           </div>
         </li>
         <li>
-          <strong>Start the bridge with an allowlist.</strong>
+          <strong>Start share mode with an allowlist.</strong>
           <div class="command-row">
-            <code>CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run dev</code>
-            <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run dev">Copy</button>
+            <code>CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share</code>
+            <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy</button>
           </div>
           <p>Replace the example origin with the private site origin or path you want this session to inspect.</p>
         </li>
@@ -52,10 +52,10 @@
           <p>The bridge opens or attaches to a Chrome profile under local ignored state. Use that browser to authenticate normally.</p>
         </li>
         <li>
-          <strong>Publish the local portal temporarily.</strong>
+          <strong>Wait for the CLI to print the public URL.</strong>
           <div class="command-row">
-            <code>cloudflared tunnel --url http://127.0.0.1:7777</code>
-            <button type="button" data-copy="cloudflared tunnel --url http://127.0.0.1:7777">Copy</button>
+            <code>Share this URL with ChatGPT: https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code>
+            <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy command</button>
           </div>
         </li>
       </ol>
@@ -66,11 +66,10 @@
         <p class="section-label">Share</p>
         <h2 id="share-title">Give ChatGPT the tokenized view URL</h2>
       </div>
-      <p>The bridge prints a local URL like this in the terminal:</p>
-      <pre><code>http://127.0.0.1:7777/s/&lt;session-token&gt;/view</code></pre>
-      <p>After `cloudflared` prints the public tunnel host, combine that host with the same path:</p>
-      <pre><code>https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
-      <p>Share only that full tokenized URL. Do not share cookies, browser profile files, local databases, or the intranet URL directly.</p>
+      <p>Share mode prints the final public URL directly:</p>
+      <pre><code>Share this URL with ChatGPT:
+https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
+      <p>Share only the full URL printed after <code>Share this URL with ChatGPT:</code>. Do not share cookies, browser profile files, local databases, or the intranet URL directly.</p>
     </section>
 
     <section class="panel" aria-labelledby="capabilities-title">
