@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatGPT Portal Browser Bridge</title>
+  <meta
+    name="description"
+    content="Run a local read-and-navigate browser bridge that exposes sanitized authenticated page snapshots to ChatGPT through a temporary Cloudflare Tunnel."
+  >
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ChatGPT Portal Browser Bridge">
+  <meta property="og:description" content="Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, or raw intranet access.">
+  <meta property="og:url" content="https://shir-man.com/chatgpt-portal/">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="page-header">
+    <a class="back-link" href="../">&larr; Back to shir-man.com</a>
+    <p class="eyebrow">Local browser bridge</p>
+    <h1>Expose authenticated pages to ChatGPT without exposing credentials</h1>
+    <p class="lede">
+      Run a local read-and-navigate bridge against a dedicated Chrome profile, then publish only the sanitized portal through a temporary Cloudflare Tunnel.
+    </p>
+  </header>
+
+  <main class="page">
+    <section class="panel" aria-labelledby="start-title">
+      <div class="section-heading">
+        <p class="section-label">Start</p>
+        <h2 id="start-title">Run the local bridge</h2>
+      </div>
+      <ol class="steps">
+        <li>
+          <strong>Install dependencies once.</strong>
+          <p>Run this from the local clone of this repository.</p>
+          <div class="command-row">
+            <code>cd chatgpt-portal &amp;&amp; npm install</code>
+            <button type="button" data-copy="cd chatgpt-portal &amp;&amp; npm install">Copy</button>
+          </div>
+        </li>
+        <li>
+          <strong>Start the bridge with an allowlist.</strong>
+          <div class="command-row">
+            <code>CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run dev</code>
+            <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run dev">Copy</button>
+          </div>
+          <p>Replace the example origin with the private site origin or path you want this session to inspect.</p>
+        </li>
+        <li>
+          <strong>Log in inside the dedicated Chrome window.</strong>
+          <p>The bridge opens or attaches to a Chrome profile under local ignored state. Use that browser to authenticate normally.</p>
+        </li>
+        <li>
+          <strong>Publish the local portal temporarily.</strong>
+          <div class="command-row">
+            <code>cloudflared tunnel --url http://127.0.0.1:7777</code>
+            <button type="button" data-copy="cloudflared tunnel --url http://127.0.0.1:7777">Copy</button>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="panel" aria-labelledby="share-title">
+      <div class="section-heading">
+        <p class="section-label">Share</p>
+        <h2 id="share-title">Give ChatGPT the tokenized view URL</h2>
+      </div>
+      <p>The bridge prints a local URL like this in the terminal:</p>
+      <pre><code>http://127.0.0.1:7777/s/&lt;session-token&gt;/view</code></pre>
+      <p>After `cloudflared` prints the public tunnel host, combine that host with the same path:</p>
+      <pre><code>https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
+      <p>Share only that full tokenized URL. Do not share cookies, browser profile files, local databases, or the intranet URL directly.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="capabilities-title">
+      <div class="section-heading">
+        <p class="section-label">Routes</p>
+        <h2 id="capabilities-title">What ChatGPT can use</h2>
+      </div>
+      <dl class="route-list">
+        <div><dt>/view</dt><dd>Read the current sanitized page snapshot.</dd></div>
+        <div><dt>/page?url=...</dt><dd>Open a page and return its sanitized snapshot.</dd></div>
+        <div><dt>/open?url=...</dt><dd>Navigate the dedicated browser tab to an allowlisted URL.</dd></div>
+        <div><dt>/links?url=...</dt><dd>List navigable links from a page.</dd></div>
+        <div><dt>/crawl?scope=...&amp;limit=...</dt><dd>Crawl allowlisted same-origin pages into the local search index.</dd></div>
+        <div><dt>/search?q=...</dt><dd>Search locally indexed sanitized snapshots.</dd></div>
+        <div><dt>/click?id=...</dt><dd>Click only navigation-like controls from the latest snapshot.</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel" aria-labelledby="security-title">
+      <div class="section-heading">
+        <p class="section-label">Safety</p>
+        <h2 id="security-title">What the bridge blocks</h2>
+      </div>
+      <ul class="compact-list">
+        <li>No raw reverse proxy into the private site.</li>
+        <li>No cookies, bearer tokens, auth headers, localStorage, sessionStorage, hidden inputs, CSRF fields, password fields, scripts, or raw forms in snapshots.</li>
+        <li>No non-allowlisted origins or paths.</li>
+        <li>No form submissions, uploads, downloads, saves, sends, deletes, approvals, charges, refunds, resets, publishes, or invites.</li>
+        <li>No long-lived public hostname in v1; use temporary `trycloudflare.com` tunnel URLs.</li>
+      </ul>
+    </section>
+
+    <section class="panel" aria-labelledby="stop-title">
+      <div class="section-heading">
+        <p class="section-label">Stop</p>
+        <h2 id="stop-title">Revoke access</h2>
+      </div>
+      <p>Stop `cloudflared` to kill the public tunnel. Stop the Node process to invalidate the local token. You can also call shutdown locally with the printed token:</p>
+      <div class="command-row">
+        <code>curl -X POST "http://127.0.0.1:7777/shutdown?token=&lt;session-token&gt;"</code>
+        <button type="button" data-copy="curl -X POST &quot;http://127.0.0.1:7777/shutdown?token=&lt;session-token&gt;&quot;">Copy</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="page.js"></script>
+</body>
+</html>

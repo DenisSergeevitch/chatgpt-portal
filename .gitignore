@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+dist/
+.local/
+.chrome-profile/
+*.db
+*.db-*
+*.log
+tunnel-url.txt

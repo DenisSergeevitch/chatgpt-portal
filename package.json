@@ -1,0 +1,23 @@
+{
+  "name": "chatgpt-portal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "check": "npm run build && npm test"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "playwright": "^1.57.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.20.6",
+    "typescript": "~5.8.2"
+  }
+}

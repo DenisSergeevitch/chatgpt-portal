@@ -1,0 +1,177 @@
+import { mkdir } from "node:fs/promises";
+import { spawn, type ChildProcess } from "node:child_process";
+import type { Browser, Page } from "playwright";
+import { chromium } from "playwright";
+import type { AppConfig } from "./config.js";
+import { sanitizeSnapshot } from "./sanitizer.js";
+import { captureRawSnapshot } from "./snapshot.js";
+import type { ClickTarget, PageSnapshot } from "./types.js";
+import { UrlPolicy } from "./url-policy.js";
+
+export class BrowserController {
+  private browser: Browser | null = null;
+  private page: Page | null = null;
+  private chromeProcess: ChildProcess | null = null;
+  private targets = new Map<string, ClickTarget>();
+
+  constructor(
+    private readonly config: AppConfig,
+    private readonly policy: UrlPolicy
+  ) {}
+
+  async currentUrl(): Promise<string | undefined> {
+    const page = await this.ensurePage();
+    const url = page.url();
+    return url === "about:blank" ? undefined : url;
+  }
+
+  async snapshot(): Promise<PageSnapshot> {
+    const page = await this.ensurePage();
+    return this.capture(page);
+  }
+
+  async open(inputUrl: string): Promise<PageSnapshot> {
+    const page = await this.ensurePage();
+    const target = this.policy.resolve(inputUrl, page.url());
+    if (!this.policy.isAllowed(target, page.url())) {
+      throw new Error(`URL is outside the portal allowlist: ${target.toString()}`);
+    }
+
+    await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
+    return this.capture(page);
+  }
+
+  async click(id: string): Promise<PageSnapshot> {
+    const page = await this.ensurePage();
+    const target = this.targets.get(id);
+    if (!target) {
+      throw new Error(`Unknown element id ${id}. Refresh /view and use one of the listed ids.`);
+    }
+
+    if (target.risk !== "navigation") {
+      throw new Error(`Element ${id} is blocked because it is not navigation-like.`);
+    }
+
+    if (target.href && !this.policy.isAllowed(target.href, page.url())) {
+      throw new Error(`Element ${id} points outside the portal allowlist.`);
+    }
+
+    await page.locator(target.selector).nth(target.index).click({ timeout: 10000 });
+    await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
+    await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
+    return this.capture(page);
+  }
+
+  async close(): Promise<void> {
+    await this.browser?.close().catch(() => undefined);
+    if (this.chromeProcess && !this.chromeProcess.killed) {
+      this.chromeProcess.kill();
+    }
+  }
+
+  private async capture(page: Page): Promise<PageSnapshot> {
+    const raw = await captureRawSnapshot(page);
+    const { snapshot, targets } = sanitizeSnapshot(raw, this.policy, {
+      maxTextChars: this.config.maxTextChars,
+    });
+    this.targets = targets;
+    return snapshot;
+  }
+
+  private async ensurePage(): Promise<Page> {
+    if (this.page && !this.page.isClosed()) {
+      return this.page;
+    }
+
+    await this.ensureBrowser();
+    const browser = this.browser;
+    if (!browser) {
+      throw new Error("Browser connection is not available.");
+    }
+
+    const context = browser.contexts()[0] || (await browser.newContext());
+    this.page = context.pages().find((candidate) => !candidate.url().startsWith("devtools://")) || (await context.newPage());
+
+    if (this.config.initialUrl && this.page.url() === "about:blank") {
+      const target = this.policy.resolve(this.config.initialUrl);
+      if (!this.policy.isAllowed(target)) {
+        throw new Error(`Initial URL is outside the portal allowlist: ${target.toString()}`);
+      }
+      await this.page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      await this.page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
+    }
+
+    return this.page;
+  }
+
+  private async ensureBrowser(): Promise<void> {
+    if (this.browser?.isConnected()) {
+      return;
+    }
+
+    const reachable = await waitForCdp(this.config.cdpEndpoint, 750);
+    if (!reachable) {
+      await this.launchChrome();
+      await waitForCdp(this.config.cdpEndpoint, 10000);
+    }
+
+    try {
+      this.browser = await chromium.connectOverCDP(this.config.cdpEndpoint);
+    } catch (error) {
+      throw new Error(
+        [
+          `Could not connect to Chrome DevTools at ${this.config.cdpEndpoint}.`,
+          "Start Chrome with remote debugging or let the bridge launch it:",
+          `  "${this.config.chromePath || "Google Chrome"}" --remote-debugging-port=${this.config.cdpPort} --user-data-dir="${this.config.chromeProfileDir}"`,
+        ].join("\n")
+      );
+    }
+  }
+
+  private async launchChrome(): Promise<void> {
+    if (!this.config.autoLaunchChrome) {
+      throw new Error(`Chrome DevTools is not reachable at ${this.config.cdpEndpoint}.`);
+    }
+
+    if (!this.config.chromePath) {
+      throw new Error(
+        "Google Chrome or Chromium was not found. Set CHATGPT_PORTAL_CHROME to the browser executable path."
+      );
+    }
+
+    await mkdir(this.config.chromeProfileDir, { recursive: true });
+    const args = [
+      `--remote-debugging-port=${this.config.cdpPort}`,
+      `--user-data-dir=${this.config.chromeProfileDir}`,
+      "--no-first-run",
+      "--no-default-browser-check",
+      this.config.initialUrl || "about:blank",
+    ];
+
+    this.chromeProcess = spawn(this.config.chromePath, args, {
+      detached: false,
+      stdio: "ignore",
+    });
+  }
+}
+
+async function waitForCdp(endpoint: string, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${endpoint.replace(/\/$/, "")}/json/version`);
+      if (response.ok) {
+        return true;
+      }
+    } catch (error) {
+      await delay(250);
+    }
+  }
+
+  return false;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
