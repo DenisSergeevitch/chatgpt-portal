@@ -51,6 +51,7 @@ test("sanitizes controls without exposing typed text values", () => {
     {
       url: currentUrl,
       title: "Form",
+      markdown: "**Service provider**: [text input: filled]",
       visibleText: "Visible form text",
       headings: [],
       links: [],
@@ -78,4 +79,26 @@ test("sanitizes controls without exposing typed text values", () => {
   assert.equal(snapshot.controls[0].hasValue, true);
   assert.doesNotMatch(JSON.stringify(snapshot.controls), /Private typed value/);
   assert.equal(targets.get("c1")?.controlKind, "text");
+});
+
+test("redacts and exposes structured markdown separately from visible text", () => {
+  const { snapshot } = sanitizeSnapshot(
+    {
+      url: currentUrl,
+      title: "Form",
+      markdown: "# Form\n[Account](https://intranet.example.com/docs/account)\n**API key**: sk_test_1234567890abcdef",
+      visibleText: "Form flat text",
+      headings: [],
+      links: [],
+      buttons: [],
+      controls: [],
+      forms: [],
+    },
+    policy,
+    { maxTextChars: 5000 }
+  );
+
+  assert.match(snapshot.markdown, /\[Account\]\(https:\/\/intranet\.example\.com\/docs\/account\)/);
+  assert.match(snapshot.markdown, /\[REDACTED_SECRET\]/);
+  assert.equal(snapshot.visibleText, "Form flat text");
 });

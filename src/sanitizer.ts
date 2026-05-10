@@ -121,6 +121,7 @@ export function sanitizeSnapshot(
       url: currentUrl,
       title: redactSensitiveText(cleanInline(raw.title) || "Untitled"),
       capturedAt: new Date().toISOString(),
+      markdown: truncate(redactSensitiveText(cleanBlock(raw.markdown || raw.visibleText)), options.maxTextChars),
       visibleText: truncate(redactSensitiveText(cleanBlock(raw.visibleText)), options.maxTextChars),
       headings: raw.headings.map((heading) => redactSensitiveText(cleanInline(heading))).filter(Boolean),
       links,
@@ -195,7 +196,10 @@ export function classifyControl(control: Pick<RawControl, "kind" | "label" | "na
 export function redactSensitiveText(value: string): string {
   return value
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, "[REDACTED_JWT]")
-    .replace(/\b(?:bearer|token|api[_-]?key|secret|session|csrf|password)\s*[:=]\s*[A-Za-z0-9._~+/\-=]{10,}\b/gi, "[REDACTED_SECRET]")
+    .replace(
+      /\b(?:bearer|token|api[\s_-]?key|secret|session|csrf|password)(?:[*_`~]+)?\s*[:=]\s*[A-Za-z0-9._~+/\-=]{10,}\b/gi,
+      "[REDACTED_SECRET]"
+    )
     .replace(/\b[A-Fa-f0-9]{32,}\b/g, "[REDACTED_HEX]")
     .replace(/\b[A-Za-z0-9_-]{48,}\b/g, "[REDACTED_TOKEN]");
 }

@@ -1,6 +1,6 @@
 # ChatGPT Portal Browser Bridge
 
-Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, localStorage, or a raw reverse proxy into a private app. The tool is made for GPT Pro-series browsing and coding agents that need to inspect private pages through a local bridge with controlled navigation and form-wizard actions.
+Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, localStorage, or a raw reverse proxy into a private app. The tool is made for GPT Pro-series browsing and coding agents that need to inspect private pages through a local bridge with structured Markdown snapshots and controlled navigation/form-wizard actions.
 
 The bridge runs locally on `127.0.0.1`, controls a dedicated Chrome profile through Chrome DevTools Protocol, and publishes only a tokenized HTML portal. For temporary public access, use share mode:
 
@@ -56,6 +56,7 @@ Use this ChatGPT Portal link to inspect the browser page I opened:
 
 Instructions:
 - Start by opening the link and reading the current `/view` snapshot.
+- Prefer the `Structured markdown` section over flat visible text; it marks headings, links, buttons, forms, radio choices, inputs, selects, and upload fields.
 - Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, safe `/click` navigation controls, `/select`, `/fill`, `/files`, and `/upload`.
 - You may select visible radio/checkbox/select controls, fill non-secret text fields and textareas, upload a file only after it has been prepared in the portal upload staging folder, and click navigation-like Continue/Next controls when the user asks.
 - Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
@@ -92,7 +93,7 @@ POST /shutdown?token=SESSION_TOKEN
 ## Safety Model
 
 - No raw reverse proxy into the authenticated site.
-- Snapshots strip cookies, bearer tokens, auth headers, localStorage, sessionStorage, hidden inputs, CSRF fields, password fields, scripts, and raw forms.
+- Snapshots expose structured Markdown plus plain visible text fallback, and strip cookies, bearer tokens, auth headers, localStorage, sessionStorage, hidden inputs, CSRF fields, password fields, scripts, and raw forms.
 - URL actions are restricted to the configured allowlist. Allowlisted hosts include subdomains by default; set `CHATGPT_PORTAL_ALLOW_SUBDOMAINS=0` for exact-host-only sessions.
 - Clicks are limited to navigation-like links, tabs, menus, pagination, and disclosure controls.
 - Controlled form actions can select radio/checkbox/select controls, fill non-secret text inputs and textareas, and set file inputs from the upload staging folder.

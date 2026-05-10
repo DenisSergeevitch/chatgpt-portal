@@ -18,7 +18,12 @@ export function renderSnapshotPage(token: string, snapshot: PageSnapshot, title 
       </header>
       ${renderSearchForm(token)}
       <section>
-        <h2>Visible text</h2>
+        <h2>Structured markdown</h2>
+        <p class="meta">Semantic view for agents. Links, buttons, and form controls are marked before the plain text fallback.</p>
+        <pre>${escapeHtml(snapshot.markdown || "(No structured markdown captured)")}</pre>
+      </section>
+      <section>
+        <h2>Plain visible text</h2>
         <pre>${escapeHtml(snapshot.visibleText || "(No visible text captured)")}</pre>
       </section>
       <section>

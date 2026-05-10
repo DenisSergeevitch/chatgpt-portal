@@ -4,7 +4,7 @@ Best practices for coding agents working on ChatGPT Portal Browser Bridge.
 
 ## Product Boundary
 
-ChatGPT Portal exposes an already-authenticated browser page to ChatGPT through sanitized, tokenized snapshots. It must not expose raw credentials, cookies, localStorage, hidden form fields, bearer tokens, CSRF values, browser profile files, or a full reverse-proxy session.
+ChatGPT Portal exposes an already-authenticated browser page to ChatGPT through sanitized, tokenized snapshots with structured Markdown. It must not expose raw credentials, cookies, localStorage, hidden form fields, bearer tokens, CSRF values, browser profile files, or a full reverse-proxy session.
 
 The architecture is intentionally small:
 
@@ -60,6 +60,7 @@ Use this ChatGPT Portal link to inspect the browser page I opened:
 
 Instructions:
 - Start by opening the link and reading the current `/view` snapshot.
+- Prefer the `Structured markdown` section over flat visible text; it marks headings, links, buttons, forms, radio choices, inputs, selects, and upload fields.
 - Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, safe `/click` navigation controls, `/select`, `/fill`, `/files`, and `/upload`.
 - You may select visible radio/checkbox/select controls, fill non-secret text fields and textareas, upload a file only after it has been prepared in the portal upload staging folder, and click navigation-like Continue/Next controls when the user asks.
 - Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
@@ -87,7 +88,7 @@ Instructions:
 - `src/server.ts` starts the local tokenized HTML portal and owns `/s/:token/...` routing.
 - `src/share.ts` starts `npm run dev`, starts `cloudflared tunnel --url <local-origin>`, parses the generated tunnel origin, and prints the final `/s/<token>/view` URL.
 - `src/browser.ts` launches or attaches to Chrome over CDP and uses a dedicated Chrome profile by default.
-- `src/snapshot.ts` extracts visible text, headings, links, buttons, controlled form inputs, form labels, tables, and page metadata.
+- `src/snapshot.ts` extracts structured Markdown, visible text, headings, links, buttons, controlled form inputs, form labels, tables, and page metadata.
 - `src/sanitizer.ts` redacts secrets, classifies safe navigation and input actions, and blocks dangerous controls.
 - `src/storage.ts` stores sanitized snapshots in local SQLite/FTS for `/search` and `/crawl`.
 - `src/render.ts` renders the plain HTML pages consumed by ChatGPT.
@@ -124,6 +125,7 @@ When testing against private or authenticated pages:
 - Remember that the default allowlist behavior includes subdomains of each allowed host. Do not hard-code real domains in tests or docs; use generic examples such as `https://example.com` and `https://app.example.com`.
 - Prefer small manual checks before crawling. Avoid large crawls on real systems unless the user explicitly asks.
 - Do not print full sanitized snapshots into chat or logs when the page may contain private business data. Fetch to a temporary file and inspect only status, title, captured URL, and obvious redaction signals.
+- When checking page comprehension, inspect the `Structured markdown` block first; the `Plain visible text` block is only a fallback for raw text search and comparison.
 - When testing uploads, create a harmless fixture under `.local/uploads`, use only that staged filename, and verify that absolute paths and `..` paths are rejected.
 - Verify tokenless and wrong-token requests return `404` or `401`.
 - Verify `/health` locally and through the tunnel before testing `/view`.

@@ -22,6 +22,7 @@ test("renders controlled form actions for inputs, selects, and files", () => {
     url: "https://intranet.example.com/form",
     title: "Form",
     capturedAt: "2026-05-10T00:00:00.000Z",
+    markdown: "# Form\n**Service provider**: [text input]",
     visibleText: "Form page",
     headings: [],
     links: [],
@@ -59,6 +60,8 @@ test("renders controlled form actions for inputs, selects, and files", () => {
   });
 
   assert.match(html, /\/s\/token\/select\?id=c1/);
+  assert.match(html, /Structured markdown/);
+  assert.match(html, /# Form/);
   assert.match(html, /action="\/s\/token\/fill"/);
   assert.match(html, /action="\/s\/token\/upload"/);
   assert.match(html, /\/s\/token\/files/);

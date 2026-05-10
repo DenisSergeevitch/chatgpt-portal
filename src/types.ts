@@ -46,6 +46,7 @@ export type PageSnapshot = {
   url: string;
   title: string;
   capturedAt: string;
+  markdown: string;
   visibleText: string;
   headings: string[];
   links: SnapshotLink[];
@@ -110,6 +111,7 @@ export type RawForm = {
 export type RawPageSnapshot = {
   url: string;
   title: string;
+  markdown: string;
   visibleText: string;
   headings: string[];
   links: RawLink[];

@@ -113,6 +113,140 @@ export async function captureRawSnapshot(page: Page): Promise<RawPageSnapshot> {
       return element.getAttribute("value") || "";
     };
 
+    const cleanMarkdownText = (value) => value.replace(/\\s+/g, " ").trim();
+
+    const markdownControlOf = (element) => {
+      const kind = controlKindOf(element);
+      const label = cleanMarkdownText(labelTextOf(element)) || cleanMarkdownText(element.getAttribute("name") || kind);
+      const required = element.required ? " required" : "";
+      const disabled = element.disabled ? " disabled" : "";
+
+      if (kind === "radio") {
+        return "- " + (element.checked ? "(x)" : "( )") + " radio: " + label + required + disabled;
+      }
+      if (kind === "checkbox") {
+        return "- " + (element.checked ? "[x]" : "[ ]") + " checkbox: " + label + required + disabled;
+      }
+      if (kind === "textarea") {
+        return "**" + label + "**: [textarea" + required + disabled + "]";
+      }
+      if (kind === "select") {
+        const selected = Array.from(element.selectedOptions || [])
+          .map((option) => cleanMarkdownText(option.innerText || option.textContent || option.value || ""))
+          .filter(Boolean)
+          .join(", ");
+        return "**" + label + "**: [select" + (selected ? ": " + selected : "") + required + disabled + "]";
+      }
+      if (kind === "file") {
+        const accept = element.getAttribute("accept") ? " accept=" + element.getAttribute("accept") : "";
+        return "**" + label + "**: [file upload" + accept + required + disabled + "]";
+      }
+
+      return "**" + label + "**: [text input" + (element.value ? ": filled" : "") + required + disabled + "]";
+    };
+
+    const normalizeMarkdown = (value) =>
+      value
+        .replace(/[ \\t]+\\n/g, "\\n")
+        .replace(/\\n[ \\t]+/g, "\\n")
+        .replace(/\\n{3,}/g, "\\n\\n")
+        .replace(/[ \\t]{2,}/g, " ")
+        .trim();
+
+    const inlineTags = new Set(["A", "SPAN", "STRONG", "B", "EM", "I", "SMALL", "CODE", "FONT"]);
+    const skipTags = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG", "CANVAS"]);
+
+    const markdownChildrenOf = (element) =>
+      Array.from(element.childNodes)
+        .map((child) => markdownOf(child))
+        .filter(Boolean)
+        .join(" ");
+
+    const markdownBlockChildrenOf = (element) =>
+      Array.from(element.childNodes)
+        .map((child) => markdownOf(child))
+        .filter(Boolean)
+        .join("\\n");
+
+    const markdownOf = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return cleanMarkdownText(node.textContent || "");
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return "";
+      }
+
+      const element = node;
+      const tag = element.tagName;
+      if (skipTags.has(tag)) {
+        return "";
+      }
+      if (element.matches && element.matches(controlSelector)) {
+        return isControlVisible(element) ? markdownControlOf(element) : "";
+      }
+      if (!isVisible(element) && tag !== "LABEL") {
+        return "";
+      }
+      if (tag === "LABEL") {
+        const wrappedControl = element.querySelector(controlSelector);
+        if (wrappedControl) {
+          return markdownOf(wrappedControl);
+        }
+        if (element.htmlFor && document.getElementById(element.htmlFor)?.matches(controlSelector)) {
+          return "";
+        }
+      }
+      if (tag === "BR") {
+        return "\\n";
+      }
+      if (tag === "A" && element.getAttribute("href")) {
+        const text = normalizeMarkdown(markdownChildrenOf(element) || textOf(element) || element.getAttribute("href") || "");
+        return "[" + text + "](" + (absoluteHref(element.getAttribute("href")) || element.getAttribute("href")) + ")";
+      }
+      if (
+        tag === "BUTTON" ||
+        element.getAttribute("role") === "button" ||
+        element.getAttribute("role") === "tab" ||
+        (element instanceof HTMLInputElement && ["button", "submit", "reset"].includes((element.getAttribute("type") || "").toLowerCase()))
+      ) {
+        const text = normalizeMarkdown(markdownChildrenOf(element) || textOf(element) || "Untitled control");
+        return "[button: " + text + "]";
+      }
+      if (tag === "STRONG" || tag === "B") {
+        const text = normalizeMarkdown(markdownChildrenOf(element));
+        return text ? "**" + text + "**" : "";
+      }
+      if (tag === "EM" || tag === "I") {
+        const text = normalizeMarkdown(markdownChildrenOf(element));
+        return text ? "_" + text + "_" : "";
+      }
+      if (/^H[1-6]$/.test(tag)) {
+        const level = Number(tag.slice(1));
+        const text = normalizeMarkdown(markdownChildrenOf(element) || textOf(element));
+        return text ? "\\n\\n" + "#".repeat(level) + " " + text + "\\n" : "";
+      }
+      if (tag === "LI") {
+        const text = normalizeMarkdown(markdownChildrenOf(element));
+        return text ? "\\n- " + text : "";
+      }
+      if (tag === "FORM") {
+        const text = normalizeMarkdown(markdownBlockChildrenOf(element));
+        return text ? "\\n\\n<form>\\n" + text + "\\n</form>\\n" : "";
+      }
+      if (tag === "TR") {
+        const cells = Array.from(element.children)
+          .map((cell) => normalizeMarkdown(markdownChildrenOf(cell)))
+          .filter(Boolean);
+        return cells.length ? "\\n| " + cells.join(" | ") + " |" : "";
+      }
+
+      const text = markdownChildrenOf(element);
+      if (!text) {
+        return "";
+      }
+      return inlineTags.has(tag) ? text : "\\n" + text + "\\n";
+    };
+
     const absoluteHref = (value) => {
       if (!value) {
         return "";
@@ -212,6 +346,7 @@ export async function captureRawSnapshot(page: Page): Promise<RawPageSnapshot> {
     return {
       url: window.location.href,
       title: document.title,
+      markdown: normalizeMarkdown(markdownOf(document.body || document.documentElement)),
       visibleText: document.body?.innerText || "",
       headings,
       links,

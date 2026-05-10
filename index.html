@@ -6,11 +6,11 @@
   <title>ChatGPT Portal Browser Bridge</title>
   <meta
     name="description"
-    content="Run a local browser bridge made for GPT Pro-series agents that exposes sanitized authenticated page snapshots and controlled form-wizard actions to ChatGPT through a temporary Cloudflare Tunnel."
+    content="Run a local browser bridge made for GPT Pro-series agents that exposes sanitized authenticated page snapshots as structured Markdown plus controlled form-wizard actions through a temporary Cloudflare Tunnel."
   >
   <meta property="og:type" content="website">
   <meta property="og:title" content="ChatGPT Portal Browser Bridge">
-  <meta property="og:description" content="A local browser bridge made for GPT Pro-series agents: expose sanitized authenticated browser snapshots and controlled form-wizard actions to ChatGPT without sharing cookies, passwords, or raw intranet access.">
+  <meta property="og:description" content="A local browser bridge made for GPT Pro-series agents: expose sanitized authenticated browser snapshots as structured Markdown with controlled form-wizard actions, without sharing cookies, passwords, or raw intranet access.">
   <meta property="og:url" content="https://shir-man.com/chatgpt-portal/">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -126,6 +126,7 @@ https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code
 
 Instructions:
 - Start by opening the link and reading the current `/view` snapshot.
+- Prefer the `Structured markdown` section over flat visible text; it marks headings, links, buttons, forms, radio choices, inputs, selects, and upload fields.
 - Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, safe `/click` navigation controls, `/select`, `/fill`, `/files`, and `/upload`.
 - You may select visible radio/checkbox/select controls, fill non-secret text fields and textareas, upload a file only after it has been prepared in the portal upload staging folder, and click navigation-like Continue/Next controls when the user asks.
 - Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
@@ -144,8 +145,8 @@ Instructions:
         <h2 id="capabilities-title">What ChatGPT can use</h2>
       </div>
       <dl class="route-list">
-        <div><dt>/view</dt><dd>Read the current sanitized page snapshot.</dd></div>
-        <div><dt>/page?url=...</dt><dd>Open a page and return its sanitized snapshot.</dd></div>
+        <div><dt>/view</dt><dd>Read the current sanitized page snapshot, including structured Markdown.</dd></div>
+        <div><dt>/page?url=...</dt><dd>Open a page and return its sanitized structured snapshot.</dd></div>
         <div><dt>/open?url=...</dt><dd>Navigate the dedicated browser tab to an allowlisted URL.</dd></div>
         <div><dt>/links?url=...</dt><dd>List navigable links from a page.</dd></div>
         <div><dt>/crawl?scope=...&amp;limit=...</dt><dd>Crawl allowlisted same-origin pages into the local search index.</dd></div>

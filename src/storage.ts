@@ -27,6 +27,7 @@ export class SnapshotStore {
   }
 
   upsert(snapshot: PageSnapshot): void {
+    const searchableText = [snapshot.markdown, snapshot.visibleText].filter(Boolean).join("\n\n");
     const row = this.db
       .prepare(
         `
@@ -45,7 +46,7 @@ export class SnapshotStore {
         url: snapshot.url,
         title: snapshot.title,
         capturedAt: snapshot.capturedAt,
-        visibleText: snapshot.visibleText,
+        visibleText: searchableText,
         headings: JSON.stringify(snapshot.headings),
         links: JSON.stringify(snapshot.links),
       }) as { id: number };
@@ -58,7 +59,7 @@ export class SnapshotStore {
             VALUES (?, ?, ?, ?, ?)
           `
         )
-        .run(row.id, snapshot.url, snapshot.title, snapshot.headings.join("\n"), snapshot.visibleText);
+        .run(row.id, snapshot.url, snapshot.title, snapshot.headings.join("\n"), searchableText);
     }
   }
 
