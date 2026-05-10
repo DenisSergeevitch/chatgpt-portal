@@ -13,6 +13,7 @@ export class BrowserController {
   private page: Page | null = null;
   private chromeProcess: ChildProcess | null = null;
   private targets = new Map<string, ClickTarget>();
+  private actionQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly config: AppConfig,
@@ -20,47 +21,63 @@ export class BrowserController {
   ) {}
 
   async currentUrl(): Promise<string | undefined> {
-    const page = await this.ensurePage();
-    const url = page.url();
-    return url === "about:blank" ? undefined : url;
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      const url = page.url();
+      return url === "about:blank" ? undefined : url;
+    });
   }
 
   async snapshot(): Promise<PageSnapshot> {
-    const page = await this.ensurePage();
-    return this.capture(page);
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      return this.capture(page);
+    });
   }
 
   async open(inputUrl: string): Promise<PageSnapshot> {
-    const page = await this.ensurePage();
-    const target = this.policy.resolve(inputUrl, page.url());
-    if (!this.policy.isAllowed(target, page.url())) {
-      throw new Error(`URL is outside the portal allowlist: ${target.toString()}`);
-    }
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      const previousUrl = page.url();
+      const target = this.policy.resolve(inputUrl, previousUrl);
+      if (!this.policy.isAllowed(target, previousUrl)) {
+        throw new Error(`URL is outside the portal allowlist: ${target.toString()}`);
+      }
 
-    await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
-    return this.capture(page);
+      try {
+        await page.goto(target.toString(), { waitUntil: "domcontentloaded", timeout: 45000 });
+      } catch (error) {
+        if (!isRecoverableNavigationAbort(error) || page.url() === previousUrl) {
+          throw error;
+        }
+      }
+
+      await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
+      return this.capture(page);
+    });
   }
 
   async click(id: string): Promise<PageSnapshot> {
-    const page = await this.ensurePage();
-    const target = this.targets.get(id);
-    if (!target) {
-      throw new Error(`Unknown element id ${id}. Refresh /view and use one of the listed ids.`);
-    }
+    return this.runExclusive(async () => {
+      const page = await this.ensurePage();
+      const target = this.targets.get(id);
+      if (!target) {
+        throw new Error(`Unknown element id ${id}. Refresh /view and use one of the listed ids.`);
+      }
 
-    if (target.risk !== "navigation") {
-      throw new Error(`Element ${id} is blocked because it is not navigation-like.`);
-    }
+      if (target.risk !== "navigation") {
+        throw new Error(`Element ${id} is blocked because it is not navigation-like.`);
+      }
 
-    if (target.href && !this.policy.isAllowed(target.href, page.url())) {
-      throw new Error(`Element ${id} points outside the portal allowlist.`);
-    }
+      if (target.href && !this.policy.isAllowed(target.href, page.url())) {
+        throw new Error(`Element ${id} points outside the portal allowlist.`);
+      }
 
-    await page.locator(target.selector).nth(target.index).click({ timeout: 10000 });
-    await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
-    await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
-    return this.capture(page);
+      await page.locator(target.selector).nth(target.index).click({ timeout: 10000 });
+      await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
+      return this.capture(page);
+    });
   }
 
   async close(): Promise<void> {
@@ -71,12 +88,40 @@ export class BrowserController {
   }
 
   private async capture(page: Page): Promise<PageSnapshot> {
-    const raw = await captureRawSnapshot(page);
+    let raw: Awaited<ReturnType<typeof captureRawSnapshot>>;
+    try {
+      raw = await captureRawSnapshot(page);
+    } catch (error) {
+      if (!isTransientNavigationError(error)) {
+        throw error;
+      }
+
+      await page.waitForLoadState("domcontentloaded", { timeout: 5000 }).catch(() => undefined);
+      await page.waitForLoadState("networkidle", { timeout: 3000 }).catch(() => undefined);
+      raw = await captureRawSnapshot(page);
+    }
+
     const { snapshot, targets } = sanitizeSnapshot(raw, this.policy, {
       maxTextChars: this.config.maxTextChars,
     });
     this.targets = targets;
     return snapshot;
+  }
+
+  private async runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.actionQueue;
+    let release: () => void = () => undefined;
+    this.actionQueue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await previous.catch(() => undefined);
+
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
   }
 
   private async ensurePage(): Promise<Page> {
@@ -174,4 +219,18 @@ async function waitForCdp(endpoint: string, timeoutMs: number): Promise<boolean>
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRecoverableNavigationAbort(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("net::ERR_ABORTED");
+}
+
+function isTransientNavigationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("Execution context was destroyed") ||
+    message.includes("Cannot find context with specified id") ||
+    message.includes("Target closed")
+  );
 }

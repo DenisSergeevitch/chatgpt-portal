@@ -1,6 +1,6 @@
 # ChatGPT Portal Browser Bridge
 
-Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, localStorage, or a raw reverse proxy into a private app.
+Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, localStorage, or a raw reverse proxy into a private app. The tool is made for GPT Pro-series browsing and coding agents that need to inspect private pages through a local, read-and-navigate bridge.
 
 The bridge runs locally on `127.0.0.1`, controls a dedicated Chrome profile through Chrome DevTools Protocol, and publishes only a tokenized HTML portal. For temporary public access, use share mode:
 
@@ -38,7 +38,7 @@ Share mode starts the local bridge, starts `cloudflared`, and prints the final U
 
 ```text
 Share this URL with ChatGPT:
-https://random-name.trycloudflare.com/s/SESSION_TOKEN/view
+https://<random-name>.trycloudflare.com/s/<session-token>/view
 ```
 
 Manual mode is still available if you want to run `cloudflared` yourself:

@@ -12,6 +12,7 @@ import {
   renderSearchPage,
   renderSnapshotPage,
 } from "./render.js";
+import { redactSensitiveText } from "./sanitizer.js";
 import type { PageSnapshot } from "./types.js";
 import { UrlPolicy } from "./url-policy.js";
 
@@ -25,8 +26,17 @@ const audit = new AuditLog(config.actionLogPath);
 const startedAt = Date.now();
 
 const server = http.createServer((request, response) => {
+  const requestUrl = requestUrlForLog(request);
+  const requestStarted = Date.now();
+  logPortal(`<= ${request.method || "GET"} ${describeUrlForLog(requestUrl)}`);
+
   handleRequest(request, response).catch((error) => {
-    writeHtml(response, 500, renderErrorPage(500, "Bridge error", error instanceof Error ? error.message : String(error)));
+    const details = errorDetails(error);
+    logPortal(
+      `!! ${request.method || "GET"} ${describeUrlForLog(requestUrl)} -> ${details.status} ${details.title} (${Date.now() - requestStarted}ms): ${details.logMessage}`,
+      true
+    );
+    writeHtml(response, details.status, renderErrorPage(details.status, details.title, details.userMessage));
   });
 });
 
@@ -123,24 +133,29 @@ async function handleSessionRoute(route: string, url: URL, response: ServerRespo
     const snapshot = await browser.snapshot();
     store.upsert(snapshot);
     await audit.write("view", { url: snapshot.url });
+    logSnapshot("view", snapshot);
     writeHtml(response, 200, renderSnapshotPage(token, snapshot));
     return;
   }
 
   if (route === "page" || route === "open") {
     const target = url.searchParams.get("url") || "";
+    logPortal(`.. ${route} ${safeValueForLog("url", target)}`);
     const snapshot = await browser.open(target);
     store.upsert(snapshot);
     await audit.write(route, { url: snapshot.url });
+    logSnapshot(route, snapshot);
     writeHtml(response, 200, renderSnapshotPage(token, snapshot, route === "open" ? "Opened page" : "Page"));
     return;
   }
 
   if (route === "links") {
     const target = url.searchParams.get("url");
+    logPortal(target ? `.. links ${safeValueForLog("url", target)}` : ".. links current page");
     const snapshot = target ? await browser.open(target) : await browser.snapshot();
     store.upsert(snapshot);
     await audit.write("links", { url: snapshot.url });
+    logSnapshot("links", snapshot);
     writeHtml(response, 200, renderLinksOnlyPage(token, snapshot));
     return;
   }
@@ -150,6 +165,7 @@ async function handleSessionRoute(route: string, url: URL, response: ServerRespo
     const limit = numberParam(url, "limit", 20, 1, 100);
     const results = store.search(query, limit);
     await audit.write("search", { query, count: results.length });
+    logPortal(`=> search q=${query ? "<query>" : "<empty>"} results=${results.length}`);
     writeHtml(response, 200, renderSearchPage(token, query, results));
     return;
   }
@@ -157,8 +173,10 @@ async function handleSessionRoute(route: string, url: URL, response: ServerRespo
   if (route === "crawl") {
     const scope = url.searchParams.get("scope") || (await browser.currentUrl()) || "";
     const requestedLimit = numberParam(url, "limit", 100, 1, config.maxCrawlLimit);
+    logPortal(`.. crawl ${safeValueForLog("scope", scope)} limit=${requestedLimit}`);
     const results = await crawl(scope, requestedLimit);
     await audit.write("crawl", { scope: results.scope, count: results.visited.length, skipped: results.skipped.length });
+    logPortal(`=> crawl ${safeUrlForLog(results.scope)} visited=${results.visited.length} skipped=${results.skipped.length}`);
     writeHtml(response, 200, renderCrawlPage(token, results));
     return;
   }
@@ -168,9 +186,11 @@ async function handleSessionRoute(route: string, url: URL, response: ServerRespo
     if (!id) {
       throw new Error("An id query parameter is required.");
     }
+    logPortal(`.. click id=${redactSensitiveText(id)}`);
     const snapshot = await browser.click(id);
     store.upsert(snapshot);
     await audit.write("click", { id, url: snapshot.url });
+    logSnapshot("click", snapshot);
     writeHtml(response, 200, renderSnapshotPage(token, snapshot, `Clicked ${id}`));
     return;
   }
@@ -265,4 +285,132 @@ async function shutdown(code: number): Promise<void> {
   server.close();
   await browser.close();
   process.exit(code);
+}
+
+function logSnapshot(action: string, snapshot: PageSnapshot): void {
+  logPortal(`=> ${action} ${safeUrlForLog(snapshot.url)} "${redactSensitiveText(snapshot.title)}"`);
+}
+
+function logPortal(message: string, isError = false): void {
+  const line = `[portal] ${new Date().toISOString()} ${stripAnsi(message)}`;
+  if (isError) {
+    console.error(line);
+  } else {
+    console.log(line);
+  }
+}
+
+function requestUrlForLog(request: IncomingMessage): URL {
+  return new URL(request.url || "/", `http://${request.headers.host || `${config.host}:${config.port}`}`);
+}
+
+function describeUrlForLog(url: URL): string {
+  const safePath = url.pathname.replace(/^\/s\/[^/]+/, "/s/<token>");
+  const params: string[] = [];
+
+  for (const name of ["url", "scope", "limit", "q", "id"]) {
+    const value = url.searchParams.get(name);
+    if (value !== null) {
+      params.push(`${name}=${safeValueForLog(name, value)}`);
+    }
+  }
+
+  return params.length ? `${safePath}?${params.join("&")}` : safePath;
+}
+
+function safeValueForLog(name: string, value: string): string {
+  if (name === "url" || name === "scope") {
+    return safeUrlForLog(value);
+  }
+
+  if (name === "q") {
+    return value ? "<query>" : "<empty>";
+  }
+
+  return redactSensitiveText(value);
+}
+
+function safeUrlForLog(value: string): string {
+  try {
+    const parsed = new URL(value);
+    parsed.username = "";
+    parsed.password = "";
+    parsed.search = parsed.search ? "?..." : "";
+    parsed.hash = "";
+    return redactSensitiveText(parsed.toString());
+  } catch (error) {
+    return redactSensitiveText(value);
+  }
+}
+
+function errorDetails(error: unknown): {
+  status: number;
+  title: string;
+  userMessage: string;
+  logMessage: string;
+} {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const message = stripAnsi(rawMessage);
+  const logMessage = redactSensitiveText(message.replace(/\s+/g, " ").trim());
+
+  if (message.includes("outside the portal allowlist") || message.includes("points outside the portal allowlist")) {
+    return {
+      status: 403,
+      title: "Blocked by portal policy",
+      userMessage: redactSensitiveText(message),
+      logMessage,
+    };
+  }
+
+  if (
+    message.includes("url query parameter is required") ||
+    message.includes("Only http and https URLs are allowed") ||
+    message.includes("Unknown element id") ||
+    message.includes("not navigation-like")
+  ) {
+    return {
+      status: 400,
+      title: "Bad portal request",
+      userMessage: redactSensitiveText(message),
+      logMessage,
+    };
+  }
+
+  if (
+    message.includes("Could not connect to Chrome DevTools") ||
+    message.includes("Chrome DevTools is not reachable") ||
+    message.includes("Google Chrome or Chromium was not found")
+  ) {
+    return {
+      status: 503,
+      title: "Browser unavailable",
+      userMessage: redactSensitiveText(message),
+      logMessage,
+    };
+  }
+
+  if (
+    message.includes("page.goto") ||
+    message.includes("net::") ||
+    message.includes("Timeout") ||
+    message.includes("Navigation")
+  ) {
+    return {
+      status: 502,
+      title: "Navigation failed",
+      userMessage: redactSensitiveText(message),
+      logMessage,
+    };
+  }
+
+  return {
+    status: 500,
+    title: "Bridge error",
+    userMessage: redactSensitiveText(message),
+    logMessage,
+  };
+}
+
+function stripAnsi(value: string): string {
+  return value.replace(/\u001b\[[0-9;]*m/g, "");
 }

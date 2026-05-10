@@ -6,21 +6,21 @@
   <title>ChatGPT Portal Browser Bridge</title>
   <meta
     name="description"
-    content="Run a local read-and-navigate browser bridge that exposes sanitized authenticated page snapshots to ChatGPT through a temporary Cloudflare Tunnel."
+    content="Run a local read-and-navigate browser bridge made for GPT Pro-series agents that exposes sanitized authenticated page snapshots to ChatGPT through a temporary Cloudflare Tunnel."
   >
   <meta property="og:type" content="website">
   <meta property="og:title" content="ChatGPT Portal Browser Bridge">
-  <meta property="og:description" content="Expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, or raw intranet access.">
+  <meta property="og:description" content="A local browser bridge made for GPT Pro-series agents: expose sanitized authenticated browser snapshots to ChatGPT without sharing cookies, passwords, or raw intranet access.">
   <meta property="og:url" content="https://shir-man.com/chatgpt-portal/">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="page-header">
     <a class="back-link" href="../">&larr; Back to shir-man.com</a>
-    <p class="eyebrow">Local browser bridge</p>
+    <p class="eyebrow">Made for GPT Pro-series agents</p>
     <h1>Expose authenticated pages to ChatGPT without exposing credentials</h1>
     <p class="lede">
-      Run a local read-and-navigate bridge against a dedicated Chrome profile, then publish only the sanitized portal through a temporary Cloudflare Tunnel.
+      Run a local read-and-navigate bridge against a dedicated Chrome profile, then publish only the sanitized portal through a temporary Cloudflare Tunnel for GPT Pro-series browsing and coding agents.
     </p>
   </header>
 
@@ -54,7 +54,7 @@
         <li>
           <strong>Wait for the CLI to print the public URL.</strong>
           <div class="command-row">
-            <code>Share this URL with ChatGPT: https://random-name.trycloudflare.com/s/SESSION_TOKEN/view</code>
+            <code>Share this URL with ChatGPT: https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code>
             <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy command</button>
           </div>
         </li>
@@ -68,7 +68,7 @@
       </div>
       <p>Share mode prints the final public URL directly:</p>
       <pre><code>Share this URL with ChatGPT:
-https://random-name.trycloudflare.com/s/SESSION_TOKEN/view</code></pre>
+https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
       <p>Share only the full URL printed after <code>Share this URL with ChatGPT:</code>. Do not share cookies, browser profile files, local databases, or the intranet URL directly.</p>
     </section>
 
