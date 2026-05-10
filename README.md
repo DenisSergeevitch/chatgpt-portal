@@ -41,6 +41,24 @@ Share this URL with ChatGPT:
 https://<random-name>.trycloudflare.com/s/<session-token>/view
 ```
 
+## ChatGPT Handoff Prompt
+
+Replace `<tokenized-portal-url>` with the exact URL printed by share mode:
+
+```text
+Use this ChatGPT Portal link to inspect the browser page I opened:
+
+<tokenized-portal-url>
+
+Instructions:
+- Start by opening the link and reading the current `/view` snapshot.
+- Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, and safe `/click` navigation controls.
+- Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
+- Do not submit forms, upload files, download files, save changes, publish, approve, delete, charge, refund, send, invite, or perform other state-changing actions.
+- If you need broader exploration, ask before using `/crawl` with a large limit.
+- Summarize what you can see from sanitized snapshots and say when something is blocked by the portal safety model.
+```
+
 Manual mode is still available if you want to run `cloudflared` yourself:
 
 ```bash

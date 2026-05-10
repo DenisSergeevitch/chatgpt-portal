@@ -117,6 +117,23 @@ After installation, run npm install and npm run check. When the user is ready to
       <pre><code>Share this URL with ChatGPT:
 https://&lt;random-name&gt;.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
       <p>Share only the full URL printed after <code>Share this URL with ChatGPT:</code>. Do not share cookies, browser profile files, local databases, or the intranet URL directly.</p>
+      <h3>ChatGPT handoff prompt</h3>
+      <p>Replace <code>&lt;tokenized-portal-url&gt;</code> with the exact URL printed by share mode, then paste this prompt into ChatGPT.</p>
+      <textarea id="chatgpt-handoff-prompt" readonly>Use this ChatGPT Portal link to inspect the browser page I opened:
+
+&lt;tokenized-portal-url&gt;
+
+Instructions:
+- Start by opening the link and reading the current `/view` snapshot.
+- Use only the portal's rendered links and actions, such as `/page`, `/open`, `/links`, `/search`, `/crawl`, and safe `/click` navigation controls.
+- Do not ask for credentials, cookies, localStorage, sessionStorage, bearer tokens, CSRF values, browser profile files, or raw request headers.
+- Do not submit forms, upload files, download files, save changes, publish, approve, delete, charge, refund, send, invite, or perform other state-changing actions.
+- If you need broader exploration, ask before using `/crawl` with a large limit.
+- Summarize what you can see from sanitized snapshots and say when something is blocked by the portal safety model.</textarea>
+      <div class="command-row">
+        <code>ChatGPT handoff prompt</code>
+        <button type="button" data-copy-target="chatgpt-handoff-prompt">Copy prompt</button>
+      </div>
     </section>
 
     <section class="panel" aria-labelledby="capabilities-title">
