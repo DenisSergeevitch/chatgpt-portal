@@ -30,9 +30,12 @@ Optional settings:
 CHATGPT_PORTAL_TARGET=https://intranet.example.com/dashboard
 CHATGPT_PORTAL_PORT=7777
 CHATGPT_PORTAL_CDP_PORT=9222
+CHATGPT_PORTAL_ALLOW_SUBDOMAINS=1
 CHATGPT_PORTAL_TOKEN_TTL_MINUTES=240
 CHATGPT_PORTAL_NO_LAUNCH=1
 ```
+
+Allowlisted hosts include their subdomains by default. For example, allowing `https://example.com` also allows `https://app.example.com`. Set `CHATGPT_PORTAL_ALLOW_SUBDOMAINS=0` when a session must stay on exact hostnames only.
 
 Share mode starts the local bridge, starts `cloudflared`, and prints the final URL to give ChatGPT:
 
@@ -84,7 +87,7 @@ POST /shutdown?token=SESSION_TOKEN
 
 - No raw reverse proxy into the authenticated site.
 - Snapshots strip cookies, bearer tokens, auth headers, localStorage, sessionStorage, hidden inputs, CSRF fields, password fields, scripts, and raw forms.
-- URL actions are restricted to the configured allowlist.
+- URL actions are restricted to the configured allowlist. Allowlisted hosts include subdomains by default; set `CHATGPT_PORTAL_ALLOW_SUBDOMAINS=0` for exact-host-only sessions.
 - Clicks are limited to navigation-like links, tabs, menus, pagination, and disclosure controls.
 - Destructive/action controls are blocked by default, including delete, remove, send, invite, approve, charge, refund, reset, publish, save, submit, upload, and download.
 - Local crawl/search state stays under `.local/`, which is ignored by git.

@@ -14,6 +14,7 @@ export type AppConfig = {
   databasePath: string;
   actionLogPath: string;
   allowlist: string[];
+  allowSubdomains: boolean;
   initialUrl: string | null;
   maxTextChars: number;
   maxCrawlLimit: number;
@@ -43,6 +44,7 @@ export async function loadConfig(): Promise<AppConfig> {
     databasePath: process.env.CHATGPT_PORTAL_DB || path.join(LOCAL_DIR, "portal.db"),
     actionLogPath: process.env.CHATGPT_PORTAL_ACTION_LOG || path.join(LOCAL_DIR, "actions.jsonl"),
     allowlist: splitList(process.env.CHATGPT_PORTAL_ALLOWLIST || ""),
+    allowSubdomains: booleanFromEnv("CHATGPT_PORTAL_ALLOW_SUBDOMAINS", true),
     initialUrl: process.env.CHATGPT_PORTAL_TARGET || null,
     maxTextChars: numberFromEnv("CHATGPT_PORTAL_MAX_TEXT_CHARS", 120000),
     maxCrawlLimit: numberFromEnv("CHATGPT_PORTAL_MAX_CRAWL_LIMIT", 5000),
@@ -57,6 +59,15 @@ function numberFromEnv(name: string, fallback: number): number {
   }
   const value = Number(raw);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function booleanFromEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  return !["0", "false", "no", "off"].includes(raw.trim().toLowerCase());
 }
 
 function splitList(value: string): string[] {

@@ -19,7 +19,7 @@ import { UrlPolicy } from "./url-policy.js";
 const config = await loadConfig();
 const token = crypto.randomBytes(24).toString("base64url");
 const tokenExpiresAt = Date.now() + config.tokenTtlMs;
-const policy = new UrlPolicy(config.allowlist);
+const policy = new UrlPolicy(config.allowlist, { allowSubdomains: config.allowSubdomains });
 const browser = new BrowserController(config, policy);
 const store = new SnapshotStore(config.databasePath);
 const audit = new AuditLog(config.actionLogPath);
@@ -58,6 +58,7 @@ server.listen(config.port, config.host, () => {
   } else {
     console.log("Allowlist: implicit current-origin mode. Set CHATGPT_PORTAL_ALLOWLIST for stricter scoping.");
   }
+  console.log(`Subdomains: ${config.allowSubdomains ? "allowed by default" : "exact hosts only"}`);
   console.log("");
 });
 
@@ -78,6 +79,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
       tokenExpiresAt: new Date(tokenExpiresAt).toISOString(),
       cdpEndpoint: config.cdpEndpoint,
       allowlistMode: config.allowlist.length ? "explicit" : "implicit-current-origin",
+      allowSubdomains: config.allowSubdomains,
     });
     return;
   }

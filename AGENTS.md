@@ -69,6 +69,7 @@ Instructions:
 
 - Keep the bridge bound to `127.0.0.1`.
 - Keep `CHATGPT_PORTAL_ALLOWLIST` central to private-page usage, tests, and examples.
+- Allowlisted hosts include their subdomains by default. Use `CHATGPT_PORTAL_ALLOW_SUBDOMAINS=0` for exact-host-only sessions.
 - Keep Chrome profile data, crawl databases, logs, screenshots, and tunnel output under ignored local-only paths.
 - Keep routes plain HTML that ChatGPT can read without client-side JavaScript.
 - Keep `/click` restricted to navigation-like controls: links, tabs, pagination, menus, and disclosures.
@@ -111,6 +112,7 @@ npm run check
 When testing against private or authenticated pages:
 
 - Use a strict allowlist for the smallest practical origin or path.
+- Remember that the default allowlist behavior includes subdomains of each allowed host. Do not hard-code real domains in tests or docs; use generic examples such as `https://example.com` and `https://app.example.com`.
 - Prefer small manual checks before crawling. Avoid large crawls on real systems unless the user explicitly asks.
 - Do not print full sanitized snapshots into chat or logs when the page may contain private business data. Fetch to a temporary file and inspect only status, title, captured URL, and obvious redaction signals.
 - Verify tokenless and wrong-token requests return `404` or `401`.

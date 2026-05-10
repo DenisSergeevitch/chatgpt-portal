@@ -1,13 +1,17 @@
 export type AllowRule = {
-  origin: string;
+  protocol: string;
+  hostname: string;
+  port: string;
   pathPrefix: string;
 };
 
 export class UrlPolicy {
   private readonly explicitRules: AllowRule[];
+  private readonly allowSubdomains: boolean;
 
-  constructor(allowlist: string[]) {
+  constructor(allowlist: string[], options: { allowSubdomains?: boolean } = {}) {
     this.explicitRules = allowlist.map(parseAllowRule).filter((rule): rule is AllowRule => Boolean(rule));
+    this.allowSubdomains = options.allowSubdomains ?? true;
   }
 
   resolve(input: string, baseUrl?: string): URL {
@@ -35,7 +39,7 @@ export class UrlPolicy {
     }
 
     if (this.explicitRules.length > 0) {
-      return this.explicitRules.some((rule) => matchesRule(parsed, rule));
+      return this.explicitRules.some((rule) => matchesRule(parsed, rule, this.allowSubdomains));
     }
 
     if (!currentUrl || !isHttpUrl(currentUrl)) {
@@ -43,7 +47,15 @@ export class UrlPolicy {
     }
 
     const current = new URL(currentUrl);
-    return parsed.origin === current.origin;
+    return matchesHostBoundary(
+      parsed,
+      {
+        protocol: current.protocol,
+        hostname: current.hostname,
+        port: current.port,
+      },
+      this.allowSubdomains
+    );
   }
 
   isWithinScope(url: URL, scope: URL): boolean {
@@ -51,7 +63,15 @@ export class UrlPolicy {
       return false;
     }
 
-    if (url.origin !== scope.origin) {
+    if (!matchesHostBoundary(
+      url,
+      {
+        protocol: scope.protocol,
+        hostname: scope.hostname,
+        port: scope.port,
+      },
+      this.allowSubdomains
+    )) {
       return false;
     }
 
@@ -71,7 +91,9 @@ function parseAllowRule(value: string): AllowRule | null {
     }
 
     return {
-      origin: url.origin,
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port,
       pathPrefix: url.pathname === "/" ? "/" : trimTrailingSlash(url.pathname),
     };
   } catch (error) {
@@ -79,8 +101,8 @@ function parseAllowRule(value: string): AllowRule | null {
   }
 }
 
-function matchesRule(url: URL, rule: AllowRule): boolean {
-  if (url.origin !== rule.origin) {
+function matchesRule(url: URL, rule: AllowRule, allowSubdomains: boolean): boolean {
+  if (!matchesHostBoundary(url, rule, allowSubdomains)) {
     return false;
   }
 
@@ -89,6 +111,20 @@ function matchesRule(url: URL, rule: AllowRule): boolean {
   }
 
   return url.pathname === rule.pathPrefix || url.pathname.startsWith(`${rule.pathPrefix}/`);
+}
+
+function matchesHostBoundary(
+  url: URL,
+  rule: Pick<AllowRule, "protocol" | "hostname" | "port">,
+  allowSubdomains: boolean
+): boolean {
+  if (url.protocol !== rule.protocol || url.port !== rule.port) {
+    return false;
+  }
+
+  const host = url.hostname.toLowerCase();
+  const allowed = rule.hostname.toLowerCase();
+  return host === allowed || (allowSubdomains && host.endsWith(`.${allowed}`));
 }
 
 function trimTrailingSlash(value: string): string {
