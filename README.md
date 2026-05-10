@@ -38,7 +38,7 @@ Share mode starts the local bridge, starts `cloudflared`, and prints the final U
 
 ```text
 Share this URL with ChatGPT:
-https://random-name.trycloudflare.com/s/<session-token>/view
+https://random-name.trycloudflare.com/s/SESSION_TOKEN/view
 ```
 
 Manual mode is still available if you want to run `cloudflared` yourself:
@@ -59,7 +59,7 @@ GET /s/:token/links?url=<absolute-or-relative-url>
 GET /s/:token/crawl?scope=<url-or-path>&limit=<number>
 GET /s/:token/search?q=<query>
 GET /s/:token/click?id=<element-id>
-POST /shutdown?token=<session-token>
+POST /shutdown?token=SESSION_TOKEN
 ```
 
 ## Safety Model

@@ -40,7 +40,7 @@ CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share
 
 ```text
 Share this URL with ChatGPT:
-https://...trycloudflare.com/s/<session-token>/view
+https://...trycloudflare.com/s/SESSION_TOKEN/view
 ```
 
 5. Give ChatGPT only that full printed URL.
@@ -87,7 +87,7 @@ GET /s/:token/links?url=<absolute-or-relative-url>
 GET /s/:token/crawl?scope=<url-or-path>&limit=<number>
 GET /s/:token/search?q=<query>
 GET /s/:token/click?id=<element-id>
-POST /shutdown?token=<session-token>
+POST /shutdown?token=SESSION_TOKEN
 ```
 
 `/click` is only for navigation-like controls: links, tabs, menus, pagination, and disclosure controls. It must continue blocking labels such as delete, remove, send, invite, approve, charge, refund, reset, publish, save, submit, upload, and download.

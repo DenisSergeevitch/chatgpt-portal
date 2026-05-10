@@ -54,7 +54,7 @@
         <li>
           <strong>Wait for the CLI to print the public URL.</strong>
           <div class="command-row">
-            <code>Share this URL with ChatGPT: https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code>
+            <code>Share this URL with ChatGPT: https://random-name.trycloudflare.com/s/SESSION_TOKEN/view</code>
             <button type="button" data-copy="CHATGPT_PORTAL_ALLOWLIST=https://intranet.example.com npm run share">Copy command</button>
           </div>
         </li>
@@ -68,7 +68,7 @@
       </div>
       <p>Share mode prints the final public URL directly:</p>
       <pre><code>Share this URL with ChatGPT:
-https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
+https://random-name.trycloudflare.com/s/SESSION_TOKEN/view</code></pre>
       <p>Share only the full URL printed after <code>Share this URL with ChatGPT:</code>. Do not share cookies, browser profile files, local databases, or the intranet URL directly.</p>
     </section>
 
@@ -109,8 +109,8 @@ https://random-name.trycloudflare.com/s/&lt;session-token&gt;/view</code></pre>
       </div>
       <p>Stop `cloudflared` to kill the public tunnel. Stop the Node process to invalidate the local token. You can also call shutdown locally with the printed token:</p>
       <div class="command-row">
-        <code>curl -X POST "http://127.0.0.1:7777/shutdown?token=&lt;session-token&gt;"</code>
-        <button type="button" data-copy="curl -X POST &quot;http://127.0.0.1:7777/shutdown?token=&lt;session-token&gt;&quot;">Copy</button>
+        <code>curl -X POST "http://127.0.0.1:7777/shutdown?token=SESSION_TOKEN"</code>
+        <button type="button" data-copy="curl -X POST &quot;http://127.0.0.1:7777/shutdown?token=SESSION_TOKEN&quot;">Copy</button>
       </div>
     </section>
   </main>
